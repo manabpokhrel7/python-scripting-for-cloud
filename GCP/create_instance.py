@@ -135,7 +135,7 @@ def wait_for_extended_operation(
 
 
 def create_instance(
-    project_id: str,
+    project_id: str ,
     zone: str,
     instance_name: str,
     disks: list[compute_v1.AttachedDisk],

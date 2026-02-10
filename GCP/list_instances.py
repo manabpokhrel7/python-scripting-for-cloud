@@ -22,14 +22,16 @@
 # [START compute_instances_list_all]
 from __future__ import annotations
 from google.cloud import compute_v1
+import google.auth
 
 def sample_aggregated_list():
     # Create a client
+    default_project_id = google.auth.default()[1]
     client = compute_v1.InstancesClient()
 
     # Initialize request argument(s)
     request = compute_v1.AggregatedListInstancesRequest(
-        project="manab-project",
+        project= default_project_id,
     )
 
     # Make the request
