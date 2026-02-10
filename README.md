@@ -294,7 +294,7 @@ Perfect as a **DevOps portfolio project** or internal automation service.
 
 ---
 
-## Next Enhancements (Optional)
+## Next Enhancements 
 
 - Authentication on API endpoints
 - Support for custom images
