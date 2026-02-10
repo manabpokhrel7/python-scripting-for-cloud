@@ -1,6 +1,4 @@
 from google.cloud import compute_v1
-from google.oauth2 import service_account
-from google.auth import app_engine
 
 
 
