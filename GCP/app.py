@@ -13,8 +13,18 @@ from zones import zone_list
 from list_images import list_images
 from disk_type import disk_list
 from logger import logger
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+origins = ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/get_zones")
 def get_zones():

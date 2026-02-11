@@ -2,3 +2,19 @@
 GCP/key.json
 GCP/sa-key.json
 GCP/__pycache__
+
+### react ###
+my-app/.DS_*
+my-app/*.log
+my-app/logs
+my-app/**/*.backup.*
+my-app/**/*.back.*
+
+my-app/node_modules
+my-app/bower_components
+
+my-app/*.sublime*
+
+my-app/psd
+my-app/thumb
+my-app/sketch
