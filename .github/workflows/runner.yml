@@ -28,4 +28,4 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: manabpokhrel7/python-cloud:${GITHUB_SHA}
+          tags: manabpokhrel7/python-cloud:latest
