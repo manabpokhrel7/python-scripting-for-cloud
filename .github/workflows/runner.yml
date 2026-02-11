@@ -1,0 +1,8 @@
+name: GitHub Actions
+run-name: Github Actions
+on: [push]
+jobs:
+  GitHub-Actions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
