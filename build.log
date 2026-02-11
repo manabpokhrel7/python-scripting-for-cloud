@@ -1,0 +1,185 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 244B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.14-slim
+#2 ...
+
+#3 [auth] library/python:pull token for registry-1.docker.io
+#3 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.14-slim
+#2 DONE 0.6s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 55B done
+#4 DONE 0.0s
+
+#5 [1/5] FROM docker.io/library/python:3.14-slim@sha256:486b8092bfb12997e10d4920897213a06563449c951c5506c2a2cfaf591c599f
+#5 DONE 0.0s
+
+#6 [2/5] WORKDIR /app
+#6 CACHED
+
+#7 [internal] load build context
+#7 transferring context: 358B 0.1s done
+#7 DONE 0.1s
+
+#8 [3/5] COPY GCP/requirements.txt .
+#8 DONE 0.0s
+
+#9 [4/5] RUN pip install -r requirements.txt
+#9 1.454 Collecting gcloud (from -r requirements.txt (line 1))
+#9 1.542   Downloading gcloud-0.18.3.tar.gz (454 kB)
+#9 1.644   Installing build dependencies: started
+#9 2.285   Installing build dependencies: finished with status 'done'
+#9 2.285   Getting requirements to build wheel: started
+#9 2.484   Getting requirements to build wheel: finished with status 'done'
+#9 2.484   Preparing metadata (pyproject.toml): started
+#9 2.580   Preparing metadata (pyproject.toml): finished with status 'done'
+#9 2.604 Collecting gunicorn (from -r requirements.txt (line 2))
+#9 2.616   Downloading gunicorn-25.0.3-py3-none-any.whl.metadata (5.5 kB)
+#9 2.651 Collecting google-auth (from -r requirements.txt (line 3))
+#9 2.660   Downloading google_auth-2.48.0-py3-none-any.whl.metadata (6.2 kB)
+#9 2.681 Collecting google-cloud-compute (from -r requirements.txt (line 4))
+#9 2.692   Downloading google_cloud_compute-1.43.0-py3-none-any.whl.metadata (10 kB)
+#9 2.730 Collecting fastapi (from -r requirements.txt (line 5))
+#9 2.740   Downloading fastapi-0.128.7-py3-none-any.whl.metadata (30 kB)
+#9 2.764 Collecting uvicorn (from -r requirements.txt (line 6))
+#9 2.772   Downloading uvicorn-0.40.0-py3-none-any.whl.metadata (6.7 kB)
+#9 2.797 Collecting google.api_core (from -r requirements.txt (line 7))
+#9 2.806   Downloading google_api_core-2.29.0-py3-none-any.whl.metadata (3.3 kB)
+#9 2.822 Collecting httplib2>=0.9.1 (from gcloud->-r requirements.txt (line 1))
+#9 2.833   Downloading httplib2-0.31.2-py3-none-any.whl.metadata (2.2 kB)
+#9 2.855 Collecting googleapis-common-protos (from gcloud->-r requirements.txt (line 1))
+#9 2.951   Downloading googleapis_common_protos-1.72.0-py3-none-any.whl.metadata (9.4 kB)
+#9 2.973 Collecting oauth2client>=2.0.1 (from gcloud->-r requirements.txt (line 1))
+#9 2.981   Downloading oauth2client-4.1.3-py2.py3-none-any.whl.metadata (1.2 kB)
+#9 3.120 Collecting protobuf!=3.0.0.b2.post1,>=3.0.0b2 (from gcloud->-r requirements.txt (line 1))
+#9 3.143   Downloading protobuf-7.34.0rc2-cp310-abi3-manylinux2014_aarch64.whl.metadata (598 bytes)
+#9 3.161 Collecting six (from gcloud->-r requirements.txt (line 1))
+#9 3.177   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+#9 3.194 Collecting packaging (from gunicorn->-r requirements.txt (line 2))
+#9 3.204   Downloading packaging-26.0-py3-none-any.whl.metadata (3.3 kB)
+#9 3.224 Collecting pyasn1-modules>=0.2.1 (from google-auth->-r requirements.txt (line 3))
+#9 3.235   Downloading pyasn1_modules-0.4.2-py3-none-any.whl.metadata (3.5 kB)
+#9 3.364 Collecting cryptography>=38.0.3 (from google-auth->-r requirements.txt (line 3))
+#9 3.374   Downloading cryptography-46.0.5-cp311-abi3-manylinux_2_34_aarch64.whl.metadata (5.7 kB)
+#9 3.485 Collecting rsa<5,>=3.1.4 (from google-auth->-r requirements.txt (line 3))
+#9 3.499   Downloading rsa-4.9.1-py3-none-any.whl.metadata (5.6 kB)
+#9 3.523 Collecting pyasn1>=0.1.3 (from rsa<5,>=3.1.4->google-auth->-r requirements.txt (line 3))
+#9 3.534   Downloading pyasn1-0.6.2-py3-none-any.whl.metadata (8.4 kB)
+#9 3.945 Collecting grpcio<2.0.0,>=1.33.2 (from google-cloud-compute->-r requirements.txt (line 4))
+#9 4.008   Downloading grpcio-1.78.0-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl.metadata (3.8 kB)
+#9 4.033 Collecting proto-plus<2.0.0,>=1.22.3 (from google-cloud-compute->-r requirements.txt (line 4))
+#9 4.049   Downloading proto_plus-1.27.1-py3-none-any.whl.metadata (2.2 kB)
+#9 4.098 Collecting protobuf!=3.0.0.b2.post1,>=3.0.0b2 (from gcloud->-r requirements.txt (line 1))
+#9 4.109   Downloading protobuf-6.33.5-cp39-abi3-manylinux2014_aarch64.whl.metadata (593 bytes)
+#9 4.185 Collecting requests<3.0.0,>=2.18.0 (from google.api_core->-r requirements.txt (line 7))
+#9 4.200   Downloading requests-2.32.5-py3-none-any.whl.metadata (4.9 kB)
+#9 4.232 Collecting grpcio-status<2.0.0,>=1.33.2 (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0,>=1.34.1->google-cloud-compute->-r requirements.txt (line 4))
+#9 4.239   Downloading grpcio_status-1.78.0-py3-none-any.whl.metadata (1.3 kB)
+#9 4.268 Collecting typing-extensions~=4.12 (from grpcio<2.0.0,>=1.33.2->google-cloud-compute->-r requirements.txt (line 4))
+#9 4.290   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+#9 4.389 Collecting charset_normalizer<4,>=2 (from requests<3.0.0,>=2.18.0->google.api_core->-r requirements.txt (line 7))
+#9 4.411   Downloading charset_normalizer-3.4.4-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (37 kB)
+#9 4.532 Collecting idna<4,>=2.5 (from requests<3.0.0,>=2.18.0->google.api_core->-r requirements.txt (line 7))
+#9 4.542   Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+#9 4.572 Collecting urllib3<3,>=1.21.1 (from requests<3.0.0,>=2.18.0->google.api_core->-r requirements.txt (line 7))
+#9 4.582   Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)
+#9 4.609 Collecting certifi>=2017.4.17 (from requests<3.0.0,>=2.18.0->google.api_core->-r requirements.txt (line 7))
+#9 4.619   Downloading certifi-2026.1.4-py3-none-any.whl.metadata (2.5 kB)
+#9 4.650 Collecting starlette<1.0.0,>=0.40.0 (from fastapi->-r requirements.txt (line 5))
+#9 4.667   Downloading starlette-0.52.1-py3-none-any.whl.metadata (6.3 kB)
+#9 4.751 Collecting pydantic>=2.7.0 (from fastapi->-r requirements.txt (line 5))
+#9 4.768   Downloading pydantic-2.12.5-py3-none-any.whl.metadata (90 kB)
+#9 4.801 Collecting typing-inspection>=0.4.2 (from fastapi->-r requirements.txt (line 5))
+#9 4.810   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+#9 4.827 Collecting annotated-doc>=0.0.2 (from fastapi->-r requirements.txt (line 5))
+#9 4.838   Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)
+#9 4.858 Collecting anyio<5,>=3.6.2 (from starlette<1.0.0,>=0.40.0->fastapi->-r requirements.txt (line 5))
+#9 4.870   Downloading anyio-4.12.1-py3-none-any.whl.metadata (4.3 kB)
+#9 4.891 Collecting click>=7.0 (from uvicorn->-r requirements.txt (line 6))
+#9 4.898   Downloading click-8.3.1-py3-none-any.whl.metadata (2.6 kB)
+#9 4.914 Collecting h11>=0.8 (from uvicorn->-r requirements.txt (line 6))
+#9 4.923   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+#9 5.118 Collecting cffi>=2.0.0 (from cryptography>=38.0.3->google-auth->-r requirements.txt (line 3))
+#9 5.127   Downloading cffi-2.0.0-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl.metadata (2.6 kB)
+#9 5.143 Collecting pycparser (from cffi>=2.0.0->cryptography>=38.0.3->google-auth->-r requirements.txt (line 3))
+#9 5.155   Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
+#9 5.181 Collecting pyparsing<4,>=3.1 (from httplib2>=0.9.1->gcloud->-r requirements.txt (line 1))
+#9 5.191   Downloading pyparsing-3.3.2-py3-none-any.whl.metadata (5.8 kB)
+#9 5.212 Collecting annotated-types>=0.6.0 (from pydantic>=2.7.0->fastapi->-r requirements.txt (line 5))
+#9 5.220   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+#9 5.723 Collecting pydantic-core==2.41.5 (from pydantic>=2.7.0->fastapi->-r requirements.txt (line 5))
+#9 5.741   Downloading pydantic_core-2.41.5-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (7.3 kB)
+#9 5.761 Downloading gunicorn-25.0.3-py3-none-any.whl (171 kB)
+#9 5.790 Downloading google_auth-2.48.0-py3-none-any.whl (236 kB)
+#9 5.828 Downloading rsa-4.9.1-py3-none-any.whl (34 kB)
+#9 5.839 Downloading google_cloud_compute-1.43.0-py3-none-any.whl (3.7 MB)
+#9 6.349    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 7.3 MB/s  0:00:00
+#9 6.365 Downloading google_api_core-2.29.0-py3-none-any.whl (173 kB)
+#9 6.398 Downloading googleapis_common_protos-1.72.0-py3-none-any.whl (297 kB)
+#9 6.451 Downloading grpcio-1.78.0-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (6.5 MB)
+#9 7.305    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.5/6.5 MB 7.6 MB/s  0:00:00
+#9 7.319 Downloading grpcio_status-1.78.0-py3-none-any.whl (14 kB)
+#9 7.343 Downloading proto_plus-1.27.1-py3-none-any.whl (50 kB)
+#9 7.377 Downloading protobuf-6.33.5-cp39-abi3-manylinux2014_aarch64.whl (324 kB)
+#9 7.451 Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+#9 7.493 Downloading charset_normalizer-3.4.4-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (147 kB)
+#9 7.539 Downloading idna-3.11-py3-none-any.whl (71 kB)
+#9 7.574 Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+#9 7.688 Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)
+#9 7.741 Downloading fastapi-0.128.7-py3-none-any.whl (103 kB)
+#9 7.789 Downloading starlette-0.52.1-py3-none-any.whl (74 kB)
+#9 7.823 Downloading anyio-4.12.1-py3-none-any.whl (113 kB)
+#9 7.864 Downloading uvicorn-0.40.0-py3-none-any.whl (68 kB)
+#9 7.897 Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)
+#9 7.937 Downloading certifi-2026.1.4-py3-none-any.whl (152 kB)
+#9 7.984 Downloading click-8.3.1-py3-none-any.whl (108 kB)
+#9 8.022 Downloading cryptography-46.0.5-cp311-abi3-manylinux_2_34_aarch64.whl (4.3 MB)
+#9 8.577    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.3/4.3 MB 7.6 MB/s  0:00:00
+#9 8.716 Downloading cffi-2.0.0-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (220 kB)
+#9 8.734 Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+#9 8.748 Downloading httplib2-0.31.2-py3-none-any.whl (91 kB)
+#9 8.768 Downloading pyparsing-3.3.2-py3-none-any.whl (122 kB)
+#9 8.804 Downloading oauth2client-4.1.3-py2.py3-none-any.whl (98 kB)
+#9 8.848 Downloading pyasn1-0.6.2-py3-none-any.whl (83 kB)
+#9 8.895 Downloading pyasn1_modules-0.4.2-py3-none-any.whl (181 kB)
+#9 8.924 Downloading pydantic-2.12.5-py3-none-any.whl (463 kB)
+#9 9.009 Downloading pydantic_core-2.41.5-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (1.9 MB)
+#9 9.269    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.9/1.9 MB 7.3 MB/s  0:00:00
+#9 9.289 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+#9 9.305 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+#9 9.331 Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+#9 9.345 Downloading packaging-26.0-py3-none-any.whl (74 kB)
+#9 9.363 Downloading pycparser-3.0-py3-none-any.whl (48 kB)
+#9 9.405 Building wheels for collected packages: gcloud
+#9 9.406   Building wheel for gcloud (pyproject.toml): started
+#9 9.622   Building wheel for gcloud (pyproject.toml): finished with status 'done'
+#9 9.623   Created wheel for gcloud: filename=gcloud-0.18.3-py3-none-any.whl size=602983 sha256=a5477e3fec47e8fbcb03d7b19c57a11bded5b4ae8262b22c75d2038fa35cbf43
+#9 9.623   Stored in directory: /root/.cache/pip/wheels/50/b6/fa/725adfb953dc218cde80b05e4ec5c6a188ee54d0f789449155
+#9 9.626 Successfully built gcloud
+#9 9.653 Installing collected packages: urllib3, typing-extensions, six, pyparsing, pycparser, pyasn1, protobuf, packaging, idna, h11, click, charset_normalizer, certifi, annotated-types, annotated-doc, uvicorn, typing-inspection, rsa, requests, pydantic-core, pyasn1-modules, proto-plus, httplib2, gunicorn, grpcio, googleapis-common-protos, cffi, anyio, starlette, pydantic, oauth2client, grpcio-status, cryptography, google-auth, gcloud, fastapi, google.api_core, google-cloud-compute
+#9 12.96 
+#9 12.96 Successfully installed annotated-doc-0.0.4 annotated-types-0.7.0 anyio-4.12.1 certifi-2026.1.4 cffi-2.0.0 charset_normalizer-3.4.4 click-8.3.1 cryptography-46.0.5 fastapi-0.128.7 gcloud-0.18.3 google-auth-2.48.0 google-cloud-compute-1.43.0 google.api_core-2.29.0 googleapis-common-protos-1.72.0 grpcio-1.78.0 grpcio-status-1.78.0 gunicorn-25.0.3 h11-0.16.0 httplib2-0.31.2 idna-3.11 oauth2client-4.1.3 packaging-26.0 proto-plus-1.27.1 protobuf-6.33.5 pyasn1-0.6.2 pyasn1-modules-0.4.2 pycparser-3.0 pydantic-2.12.5 pydantic-core-2.41.5 pyparsing-3.3.2 requests-2.32.5 rsa-4.9.1 six-1.17.0 starlette-0.52.1 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.6.3 uvicorn-0.40.0
+#9 12.96 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+#9 13.03 
+#9 13.03 [notice] A new release of pip is available: 25.3 -> 26.0.1
+#9 13.03 [notice] To update, run: pip install --upgrade pip
+#9 DONE 13.4s
+
+#10 [5/5] COPY GCP/*.py .
+#10 DONE 0.0s
+
+#11 exporting to image
+#11 exporting layers
+#11 exporting layers 0.4s done
+#11 writing image sha256:923aa054df97dec80e775ecfe86612203281aa4eecc4031c6fc121827f3f0b98
+#11 writing image sha256:923aa054df97dec80e775ecfe86612203281aa4eecc4031c6fc121827f3f0b98 done
+#11 naming to docker.io/manabpokhrel7/python-cloud done
+#11 DONE 0.4s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/n3zduc2r39m2isdjo1dt8qeu5

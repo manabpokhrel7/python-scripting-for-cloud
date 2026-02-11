@@ -3,5 +3,5 @@ gunicorn
 google-auth
 google-cloud-compute
 fastapi
-gunicorn
+uvicorn
 google.api_core

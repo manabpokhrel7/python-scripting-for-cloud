@@ -13,6 +13,7 @@ from zones import zone_list
 from list_images import list_images
 from disk_type import disk_list
 from logger import logger
+
 app = FastAPI()
 
 @app.get("/get_zones")
