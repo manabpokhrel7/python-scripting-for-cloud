@@ -302,3 +302,8 @@ Perfect as a **DevOps portfolio project** or internal automation service.
 - Startup scripts & metadata
 - Async job tracking
 
+
+## On Docker
+
+- docker run -p 8000:8000 -e GOOGLE_CLOUD_PROJECT=<your-project-name> -v ~/.config/gcloud:/root/.config/gcloud --rm manabpokhrel7/python-cloud 
+
