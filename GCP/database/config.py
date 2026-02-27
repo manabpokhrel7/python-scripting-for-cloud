@@ -35,5 +35,6 @@ class Settings(BaseSettings):
     class Config: #Dont write () in this nested class you dont inherit anything here
         env_file = ".env"
         env_file_encoding = "utf-8" #even the arguement name should be the same "env_file" case sensitive
+        extra = "ignore"
 
 settings = Settings() #To initialize the settings class
