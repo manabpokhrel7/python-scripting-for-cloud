@@ -139,7 +139,7 @@ def create_instance(
     zone: str,
     instance_name: str,
     disks: list[compute_v1.AttachedDisk],
-    machine_type: str = "n1-standard-1",
+    machine_type: str ,
     network_link: str = "global/networks/default",
     subnetwork_link: str = None,
     internal_ip: str = None,

@@ -1,199 +1,327 @@
 import React, { useEffect, useState } from "react";
-import "./App.css";
+import {
+  Box,
+  Typography,
+  TextField,
+  Select,
+  MenuItem,
+  Button,
+  Card,
+  CardContent,
+  Grid,
+  AppBar,
+  Toolbar,
+  CircularProgress,
+  Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogActions,
+} from "@mui/material";
+import CloudIcon from "@mui/icons-material/Cloud";
 
 const API = "http://localhost:8000";
+// <script src="https://apis.google.com/js/platform.js" async defer></script>
+// <meta name="google-signin-client_id" content="819505409176-fr96mcdv3mlct7msd9f916qhqb9k2t73.apps.googleusercontent.com">
+const imageCatalog: Record<string, string[]> = {
+  "debian-cloud": ["debian-13", "debian-12", "debian-11"],
+  "ubuntu-os-cloud": ["ubuntu-2404-lts-amd64", "ubuntu-2204-lts"],
+  "centos-cloud": ["centos-stream-10", "centos-stream-9"],
+  "rhel-cloud": ["rhel-10", "rhel-9"],
+  "rocky-linux-cloud": ["rocky-linux-10", "rocky-linux-9"],
+  "cos-cloud": ["cos-125-lts", "cos-121-lts"],
+};
 
 export default function App() {
   const [zones, setZones] = useState<string[]>([]);
+  const [diskTypes, setDiskTypes] = useState<string[]>([]);
+  const [machineTypeMap, setMachineTypeMap] = useState<Record<string, string>>({});
   const [instances, setInstances] = useState<Record<string, string>>({});
+
+  const [loadingZones, setLoadingZones] = useState(true);
+  const [loadingDisk, setLoadingDisk] = useState(false);
+  const [loadingMachine, setLoadingMachine] = useState(true);
+  const [loadingCreate, setLoadingCreate] = useState(false);
 
   const [instanceName, setInstanceName] = useState("");
   const [selectedZone, setSelectedZone] = useState("");
   const [selectedDisk, setSelectedDisk] = useState("");
-  const [diskTypes, setDiskTypes] = useState<string[]>([]);
+  const [selectedMachineType, setSelectedMachineType] = useState("");
+  const [selectedProject, setSelectedProject] = useState("");
+  const [selectedFamily, setSelectedFamily] = useState("");
+  const [diskSize, setDiskSize] = useState(10);
 
-  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
-  const [notification, setNotification] = useState<string | null>(null);
+  const [notification, setNotification] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ name: string; zone: string } | null>(null);
 
   useEffect(() => {
     fetchZones();
     fetchInstances();
+    fetchMachineTypes();
   }, []);
 
-  const showNotification = (message: string) => {
-    setNotification(message);
-    setTimeout(() => setNotification(null), 4000);
-  };
-
   const fetchZones = async () => {
-    const res = await fetch(`${API}/get_zones`);
-    const data = await res.json();
-    if (Array.isArray(data)) setZones(data);
+    setLoadingZones(true);
+    try {
+      const res = await fetch(`${API}/get_zones`);
+      const data = await res.json();
+      setZones(Array.isArray(data) ? data : []);
+    } catch {
+      setZones([]);
+    }
+    setLoadingZones(false);
   };
 
   const fetchDiskTypes = async (zone: string) => {
-    if (!zone) return;
-    const res = await fetch(`${API}/disk_types?zone=${zone}`);
-    const data = await res.json();
-    if (Array.isArray(data)) setDiskTypes(data);
+    setLoadingDisk(true);
+    setSelectedDisk("");
+    try {
+      const res = await fetch(`${API}/disk_types?zone=${zone}`);
+      const data = await res.json();
+      setDiskTypes(Array.isArray(data) ? data : []);
+    } catch {
+      setDiskTypes([]);
+    }
+    setLoadingDisk(false);
+  };
+
+  const fetchMachineTypes = async () => {
+    setLoadingMachine(true);
+    try {
+      const res = await fetch(`${API}/machine_type`, { method: "POST" });
+      const data = await res.json();
+      setMachineTypeMap(data || {});
+    } catch {
+      setMachineTypeMap({});
+    }
+    setLoadingMachine(false);
   };
 
   const fetchInstances = async () => {
-    setLoadingMessage("Refreshing instances...");
     try {
       const res = await fetch(`${API}/list_instance`);
       const data = await res.json();
       setInstances(data || {});
     } catch {
-      showNotification("Failed to fetch instances.");
+      setInstances({});
     }
-    setLoadingMessage(null);
   };
 
+  const filteredMachineTypes = Object.entries(machineTypeMap)
+    .filter(([_, zone]) => {
+      const cleanZone = zone.replace("zones/", "");
+      return cleanZone === selectedZone;
+    })
+    .map(([type]) => type);
+
   const createInstance = async () => {
-    if (!instanceName || !selectedZone || !selectedDisk) {
-      showNotification("Please fill all required fields.");
+    if (
+      !instanceName ||
+      !selectedZone ||
+      !selectedDisk ||
+      !selectedMachineType ||
+      !selectedProject ||
+      !selectedFamily
+    ) {
+      setNotification("Please fill all required fields.");
       return;
     }
 
-    setLoadingMessage("Creating instance... This may take 30 seconds.");
+    setLoadingCreate(true);
 
     try {
       const res = await fetch(
-        `${API}/create_machine?instance_name=${instanceName}&instance_zone=${selectedZone}&disk_type=${selectedDisk}`,
+        `${API}/create_machine?instance_name=${instanceName}&instance_zone=${selectedZone}&disk_type=${selectedDisk}&image_project=${selectedProject}&image_family=${selectedFamily}&machine_type=${selectedMachineType}&disk_size_gb=${diskSize}`,
         { method: "POST" }
       );
 
       const text = await res.text();
-      showNotification(text || "Operation completed.");
-
-      await fetchInstances();
+      setNotification(text || "Instance creation started.");
+      setTimeout(fetchInstances, 5000);
     } catch {
-      showNotification("Frontend error during creation.");
+      setNotification("Error creating instance.");
     }
 
-    setLoadingMessage(null);
+    setLoadingCreate(false);
   };
 
-  const deleteInstance = async (name: string, zonePath: string) => {
-    setLoadingMessage(`Deleting ${name}...`);
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
 
-    // Extract actual zone name from "zones/us-central1-c"
-    const zoneName = zonePath.split("/").pop();
+    const zoneName = deleteTarget.zone.replace("zones/", "");
 
-    try {
-      const res = await fetch(
-        `${API}/delete_instance?instance_name=${name}&zone_name=${zoneName}`,
-        { method: "POST" }
-      );
+    await fetch(
+      `${API}/delete_instance?instance_name=${deleteTarget.name}&zone_name=${zoneName}`,
+      { method: "POST" }
+    );
 
-      const text = await res.text();
-      showNotification(text || "Instance deleted.");
-
-      await fetchInstances();
-    } catch {
-      showNotification("Frontend error during deletion.");
-    }
-
-    setLoadingMessage(null);
+    setNotification("Delete operation started...");
+    setTimeout(fetchInstances, 5000);
+    setDeleteTarget(null);
   };
 
   return (
-    <div className="container">
-      <header className="header">
-        <div className="logo">☁</div>
-        <div>
-          <h1>Manab's Cloud Instance</h1>
-          <p className="subtitle">Google Compute Engine Dashboard</p>
-        </div>
-      </header>
+    <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6f9" }}>
+      <AppBar position="static">
+        <Toolbar>
+          <CloudIcon sx={{ mr: 2 }} />
+          <Typography variant="h6">Manab Cloud Dashboard</Typography>
+        </Toolbar>
+      </AppBar>
 
-      {loadingMessage && (
-        <div className="progress-wrapper">
-          <div className="progress-bar"></div>
-          <div className="progress-text">{loadingMessage}</div>
-        </div>
-      )}
+      <Box sx={{ p: 4 }}>
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5">Provision Virtual Machine</Typography>
 
-      {notification && (
-        <div className="notification">
-          {notification}
-        </div>
-      )}
+                <TextField
+                  fullWidth
+                  label="Instance Name"
+                  sx={{ mt: 2 }}
+                  value={instanceName}
+                  onChange={(e) => setInstanceName(e.target.value)}
+                />
 
-      {/* CREATE VM */}
-      <div className="card">
-        <h2>Provision Virtual Machine</h2>
+                <Select
+                  fullWidth
+                  displayEmpty
+                  sx={{ mt: 2 }}
+                  value={selectedZone}
+                  onChange={(e) => {
+                    const zone = e.target.value;
+                    setSelectedZone(zone);
+                    fetchDiskTypes(zone);
+                  }}
+                >
+                  <MenuItem value="">
+                    {loadingZones ? "Loading Zones..." : "Select Zone"}
+                  </MenuItem>
+                  {zones.map((z) => (
+                    <MenuItem key={z} value={z}>{z}</MenuItem>
+                  ))}
+                </Select>
 
-        <input
-          type="text"
-          placeholder="Instance Name (lowercase only)"
-          value={instanceName}
-          onChange={(e) => setInstanceName(e.target.value)}
-        />
+                <Select
+                  fullWidth
+                  displayEmpty
+                  sx={{ mt: 2 }}
+                  value={selectedDisk}
+                  onChange={(e) => setSelectedDisk(e.target.value)}
+                >
+                  <MenuItem value="">
+                    {loadingDisk ? "Loading Disk Types..." : "Select Disk Type"}
+                  </MenuItem>
+                  {diskTypes.map((d) => (
+                    <MenuItem key={d} value={d}>{d}</MenuItem>
+                  ))}
+                </Select>
 
-        <select
-          value={selectedZone}
-          onChange={(e) => {
-            setSelectedZone(e.target.value);
-            fetchDiskTypes(e.target.value);
-          }}
-        >
-          <option value="">Select Zone</option>
-          {zones.map((z) => (
-            <option key={z}>{z}</option>
-          ))}
-        </select>
+                <TextField
+                  type="number"
+                  fullWidth
+                  sx={{ mt: 2 }}
+                  label="Disk Size (GB)"
+                  value={diskSize}
+                  onChange={(e) => setDiskSize(Number(e.target.value))}
+                />
 
-        <select
-          value={selectedDisk}
-          onChange={(e) => setSelectedDisk(e.target.value)}
-        >
-          <option value="">Select Disk Type</option>
-          {diskTypes.map((d) => (
-            <option key={d}>{d}</option>
-          ))}
-        </select>
+                <Select
+                  fullWidth
+                  displayEmpty
+                  sx={{ mt: 2 }}
+                  value={selectedMachineType}
+                  disabled={!selectedZone}
+                  onChange={(e) => setSelectedMachineType(e.target.value)}
+                >
+                  <MenuItem value="">
+                    {loadingMachine ? "Loading Machine Types..." : "Select Machine Type"}
+                  </MenuItem>
 
-        <button onClick={createInstance} disabled={!!loadingMessage}>
-          Create Instance
-        </button>
-      </div>
+                  {filteredMachineTypes.length === 0 && selectedZone && !loadingMachine && (
+                    <MenuItem disabled>No machine types available</MenuItem>
+                  )}
 
-      {/* INSTANCES */}
-      <div className="card">
-        <h2>Active Instances</h2>
+                  {filteredMachineTypes.map((m) => (
+                    <MenuItem key={m} value={m}>{m}</MenuItem>
+                  ))}
+                </Select>
 
-        <button onClick={fetchInstances} disabled={!!loadingMessage}>
-          Refresh
-        </button>
+                <Select
+                  fullWidth
+                  displayEmpty
+                  sx={{ mt: 2 }}
+                  value={selectedProject}
+                  onChange={(e) => setSelectedProject(e.target.value)}
+                >
+                  <MenuItem value="">Select Image Project</MenuItem>
+                  {Object.keys(imageCatalog).map((p) => (
+                    <MenuItem key={p} value={p}>{p}</MenuItem>
+                  ))}
+                </Select>
 
-        <div className="scroll-list">
-          {Object.entries(instances).length === 0 && !loadingMessage && (
-            <div className="empty">No instances found.</div>
-          )}
+                <Select
+                  fullWidth
+                  displayEmpty
+                  sx={{ mt: 2 }}
+                  value={selectedFamily}
+                  disabled={!selectedProject}
+                  onChange={(e) => setSelectedFamily(e.target.value)}
+                >
+                  <MenuItem value="">Select Image Family</MenuItem>
+                  {(imageCatalog[selectedProject] || []).map((f) => (
+                    <MenuItem key={f} value={f}>{f}</MenuItem>
+                  ))}
+                </Select>
 
-          {Object.entries(instances).map(([name, zone]) => (
-            <div key={name} className="instance-row">
-              <div className="instance-info">
-                <span className="vm-icon">🖥</span>
-                <div>
-                  <div className="instance-name">{name}</div>
-                  <div className="instance-zone">{zone}</div>
-                </div>
-              </div>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  sx={{ mt: 3 }}
+                  onClick={createInstance}
+                  disabled={loadingCreate}
+                >
+                  {loadingCreate ? <CircularProgress size={24} /> : "Create Instance"}
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
 
-              <button
-                className="danger"
-                onClick={() => deleteInstance(name, zone)}
-                disabled={!!loadingMessage}
-              >
-                Delete
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5">Active Instances</Typography>
+
+                {Object.entries(instances).map(([name, zone]) => (
+                  <Box key={name} sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
+                    <Box>
+                      <Typography>{name}</Typography>
+                      <Typography variant="body2">{zone}</Typography>
+                    </Box>
+                    <Button color="error" onClick={() => setDeleteTarget({ name, zone })}>
+                      Delete
+                    </Button>
+                  </Box>
+                ))}
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Box>
+
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
+        <DialogTitle>Delete {deleteTarget?.name}?</DialogTitle>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+          <Button color="error" onClick={confirmDelete}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+      <Snackbar
+        open={!!notification}
+        autoHideDuration={4000}
+        message={notification}
+        onClose={() => setNotification("")}
+      />
+    </Box>
   );
 }

@@ -18,3 +18,7 @@ my-app/*.sublime*
 my-app/psd
 my-app/thumb
 my-app/sketch
+
+#Python
+GCP/.env
+GCP/oauth.py

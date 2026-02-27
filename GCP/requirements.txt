@@ -5,3 +5,11 @@ google-cloud-compute
 fastapi
 uvicorn
 google.api_core
+pydantic
+greenlet
+psycopg2
+python-jose
+Crypto
+pyjwt-2.11.0
+pwdlib
+pwdlib[argon2]
