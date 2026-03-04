@@ -20,3 +20,10 @@ class Auth(Base):
     name: Mapped[str] = mapped_column(String(30))
     hashed_password: Mapped[str] = mapped_column(String(255))
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+
+class Cloud(Base):
+    __tablename__ = "cloud_table"  #tablename is a special keyword in sqlalchemy used to define the table name
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    access_token: Mapped[str] = mapped_column(unique=True, index=True)
+    refresh_token: Mapped[str] = mapped_column(unique=True, index=True)
+    sub: Mapped[str] = mapped_column(unique=True, index=True)

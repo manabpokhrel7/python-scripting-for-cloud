@@ -1,45 +1,31 @@
-from flask import Flask, url_for, session, redirect
-from authlib.integrations.flask_client import OAuth
-import os
-from dotenv import load_dotenv
+import json
+from fastapi import APIRouter
+from starlette.config import Config
+from starlette.requests import Request
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import HTMLResponse, RedirectResponse
+from authlib.integrations.starlette_client import OAuth, OAuthError
 
-app = Flask(__name__)
-# app.secret_key = 'app-secret-key'
+def oauth():
+    config = Config('.env')
+    oauth = OAuth(config)
+
+    CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
+    oauth.register(
+        name='google', #This register name is used below in the login and auth
+        server_metadata_url=CONF_URL,
+        client_kwargs={
+            'scope': 'openid email profile https://www.googleapis.com/auth/cloud-platform' #Ask this and where does this method initialize
+        }
+    )
 
 
 
+# The Login Click: You send the user to Google. Your session cookie stores a state (to prevent hacking), and the URL you send to Google contains your Client ID and Redirect URI. (Note: Your Secret stays on your server; it is never sent to the browser). [1, 2]
+# The Google Part: The user clicks "Allow." Google redirects the browser back to your /auth page. [3, 4]
+# The "Front-Channel" Code: As you said, Google puts a temporary Authorization Code right in the URL (e.g., ?code=123...). This is the "Front-Channel." [5, 6]
+# The "Back-Channel" Trade: Inside your /auth function, authorize_access_token grabs that code from the URL and sends it—along with your Client Secret—directly to Google's server in the background. [5, 7]
+# The Prize (The Token): Google verifies the secret and the code, then sends back the Token (containing the user's email/name). [7, 8]
 
-
-google = OAuth(app).register(
-    "myApp",
-    client_id=os.getenv('secret_id'),
-    client_secret=os.getenv('secret_key'),
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'},
-)
-
-
-@app.route('/')
-def homepage():
-    print('home page')
-    return '<a href="/login">Log in with Google</a>'
-@app.route('/login')
-def login():
-    redirect_uri = url_for('authorize', _external=True)
-    return google.authorize_redirect(redirect_uri)
-
-@app.route('/authorize')
-def authorize():
-    token = google.authorize_access_token()
-    session['user'] = token
-
-    userToken = session.get('user')
-    userInfo = userToken['userinfo']
-    page = f'<h2>Hello {userInfo['given_name']}</h2>'
-    page += '<p><strong>Your email:</strong></p>'
-    page += f'<p>{userInfo['email']}</p>'
-    return page
-
-if __name__ == '__main__':
-    app.run(debug=True)
-
+# Front-Channel (The Browser/URL): Like a postcard. Everyone can see it (the code in the URL), but it's only a "claim ticket." [2, 4]
+# Back-Channel (Server-to-Server): Like a private phone call. It happens behind the scenes between your FastAPI server and Google's server. This is where the real "money" (the token) is exchanged. [5, 6]

@@ -1,9 +1,11 @@
-from database.models import Auth, Items
-from sqlalchemy import select
+from database.models import Auth, Items, Cloud
+from sqlalchemy import select, delete
 from JWT.hash import verify_password, get_password_hash
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import ValidationError
+from fastapi import Depends
+from starlette.requests import Request
 
 
 
@@ -47,6 +49,41 @@ async def list_item(owner_id: int, db: AsyncSession):
     except ValidationError as e:
         print({e})
 
+##Storing Access Token in the database
+async def store_token(token_id, refreshtoken, sub, db: AsyncSession):
+    existing_sub = await db.scalar(select(Cloud).where(Cloud.sub == sub))
+    if existing_sub:
+        print("The user is logged in")
+    else:
+        access_token = Cloud(
+            access_token=token_id,
+            refresh_token=refreshtoken,
+            sub=sub
+        )
+        db.add(access_token)
+        await db.commit()
+        await db.refresh(access_token)  # Reload from DB to get ID
+
+
+async def delete_token(sub, db: AsyncSession):
+    delete_sub = delete(Cloud).where(Cloud.sub == sub)
+    if delete_sub is None:
+        print("The user is already logged out")
+    else:
+        await db.execute(delete_sub)
+        await db.commit()
+
+async def get_token(request, db: AsyncSession):
+    sub = request.session.get('sub')
+    token_value = await db.scalar(select(Cloud.access_token).where(Cloud.sub == sub))
+    refresh_value = await db.scalar(select(Cloud.refresh_token).where(Cloud.sub == sub))
+    if token_value is None:
+        print("Please log in first")
+    else:
+        dict = {}
+        dict["access_token"] = token_value
+        dict["refresh_token"] = refresh_value
+        return dict
 
 
 

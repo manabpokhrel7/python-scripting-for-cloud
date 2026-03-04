@@ -1,99 +1,109 @@
-from typing import Annotated
-
-from authlib.integrations.flask_client import OAuth
-from fastapi import FastAPI, HTTPException, Depends, status, APIRouter
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.exc import DBAPIError
+from fastapi import FastAPI, APIRouter, Depends
 from legacyAuth.auth import router as auth
 from methods.cloudRoutes import router as cloud
-from methods.create_instance import (
-    create_instance,
-    disk_from_image,
-)
-import google.auth
-import google.auth.exceptions
-from methods.create_instance import get_image_from_family
-from methods.list_instances import sample_aggregated_list
-from methods.delete_instance import sample_delete
-from methods.zones import zone_list
-from methods.list_images import list_images
-from methods.disk_type import disk_list
-from methods.machinetype import machine_list
-from logger import logger
 from fastapi.middleware.cors import CORSMiddleware
 from database.database import engine, get_db
 from database.models import Base
-# from database.crud import create_user, list_item, create_item
-# from JWT.jwt import authenticate_user, get_current_user, create_access_token
-# from my_pydantic_class import Token, CreateUser, CreateItem, CreateResponse, UserResponse
-# from datetime import timedelta
-# from sqlalchemy.ext.asyncio import AsyncSession
-# from oauth import authorize_access_token
-import os
 from dotenv import load_dotenv
+import json
+from fastapi import APIRouter
+from starlette.config import Config
+from starlette.requests import Request
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import HTMLResponse, RedirectResponse
+from authlib.integrations.starlette_client import OAuth, OAuthError
+from database.crud import store_token, delete_token, get_token
+from sqlalchemy.ext.asyncio import AsyncSession
+from oauth import oauth
 
-load_dotenv()
-# ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app = FastAPI()
 router = APIRouter()
 
-origins = ["*"]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+#Middleware
+app.add_middleware(SessionMiddleware, secret_key="!secret")
+origins = ["http://localhost:8000"]
+app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-app.secret_key = 'app-secret-key'
+
 @app.on_event("startup")
 async def startup_event():
     async with engine.begin() as conn:
-        yield Base.metadata.create_all(conn)
+        await conn.run_sync(Base.metadata.create_all)
+
+#Auth Logic with Google
+config = Config('.env')
+oauth = OAuth(config)
+
+CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
+oauth.register(
+    name='google', #This register name is used below in the login and auth
+    server_metadata_url=CONF_URL,
+    client_kwargs={
+        'scope': 'openid email profile https://www.googleapis.com/auth/cloud-platform' #Ask this and where does this method initialize
+    }
+)
 
 
 
 app.include_router(auth, prefix="/api")
 app.include_router(cloud, prefix="/cloud")
-# app.include_router(google, prefix="/google")
 
-#
 
-#
-# # This is the new Auth
-# google = OAuth(app).register(
-#     "myApp",
-#     client_id=os.getenv('secret_id'),
-#     client_secret=os.getenv('secret_key'),
-#     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-#     client_kwargs={'scope': 'openid email profile'},
-# )
-#
-# @app.post('/')
-# def homepage():
-#     print('home page')
-#     return '<a href="/login">Log in with Google</a>'
-#
-# @app.post('/login')
-# def login():
-#     redirect_uri = url_for('authorize', _external=True)
-#     return google.authorize_redirect(redirect_uri)
-#
-# @app.get('/authorize')
-# def authorize():
-#     token = google.authorize_access_token()
-#     session['user'] = token
-#
-#     userToken = session.get('user')
-#     userInfo = userToken['userinfo']
-#     page = f'<h2>Hello {userInfo['given_name']}</h2>'
-#     page += '<p><strong>Your email:</strong></p>'
-#     page += f'<p>{userInfo['email']}</p>'
-#     return page
-#
-#
-#
-#
-#
+@app.get('/test')
+async def test(request:Request, db: AsyncSession = Depends(get_db)):
+    return await get_token(request, db)
+
+@app.get('/')
+async def homepage(request: Request):
+    user = request.session.get('sub')
+    if user:
+        data = json.dumps(user)
+        html = (
+            f'<pre>{data}</pre>'
+            '<a href="/logout">logout</a>'
+        )
+        return HTMLResponse(html)
+    return HTMLResponse('<a href="/login">login</a>')
+
+@app.get('/login')
+async def login(request: Request):
+    redirect_uri = request.url_for('auth') #Generates absolute URL for redirect after login to avoid hardcode eg if in localhost localhost:8000/auth
+    return await oauth.google.authorize_redirect(request, redirect_uri, access_type="offline", prompt="consent") #THis method Sends the redirect url and our session state which is random unique identifier
+#the method is sent to our own developer account because the object oauth has the client information and it sends to our app server in google
+
+#In between this we get a google prompt to sign in to our google accnt and we do that and google sends a authorization code back to us which is utilized by the /auth fun below
+
+@app.get('/auth')
+async def auth(request: Request, db: AsyncSession = Depends(get_db)):
+    try: #The back channel our server to google server conn browser dont see our secret
+        token = await oauth.google.authorize_access_token(request) #This method sends the client secret Plus the authorization code recieved after we pass the google prompt and we recieve the token dict
+    except OAuthError as error:
+        return HTMLResponse(f'<h1>{error.error}</h1>')
+    usertoken = token.get('access_token') #From the token dict we use python get method to get the usertoken field from the dict
+    userinfo = token.get('userinfo') #The userinfo dict
+    refreshtoken = token.get('refresh_token')
+    sub = userinfo['sub'] #from the user info dict i extracted unique sub field it is unique to every id
+    await store_token(usertoken, refreshtoken, sub, db)
+    print(token)
+    if usertoken:
+        request.session['sub'] = sub #We temporarily store this in our session middleware and it sends us cookie to our browser
+        request.session['access_token'] = usertoken
+        request.session['refresh_token'] = refreshtoken
+        print(request.session)
+        print("ACEESS TOKEN")
+        print(request.session.get('access_token'))
+        print("request TOKEN below as well")
+        print(request.session.get('refresh_token'))
+    return RedirectResponse(url='/')
+
+@app.get('/logout')
+async def logout(request: Request, db: AsyncSession = Depends(get_db)):
+    sub = request.session.get('sub')
+    await delete_token(sub, db)
+    request.session.pop('sub', None) #This sends a HTTP requests back to the client browser to unset the cookie
+    request.session.pop('access_token', None)
+    request.session.clear()
+    return RedirectResponse(url='/')
+
+
