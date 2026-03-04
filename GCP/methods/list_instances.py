@@ -29,7 +29,7 @@ from database.crud import get_token
 from config.config import Config
 
 
-async def sample_aggregated_list(request: Request, db: AsyncSession):
+async def sample_aggregated_list(project_name: str, request: Request, db: AsyncSession):
     #Get tokens from database
     token = await get_token(request, db)
 
@@ -40,7 +40,7 @@ async def sample_aggregated_list(request: Request, db: AsyncSession):
 
     # Initialize request argument(s)
     request = compute_v1.AggregatedListInstancesRequest(
-        project="project-92fd223f-0cf0-4e0e-95c",
+        project=project_name,
     )
 
     # Make the requests/

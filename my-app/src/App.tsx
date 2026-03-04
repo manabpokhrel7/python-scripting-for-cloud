@@ -1,327 +1,545 @@
-import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Typography,
-  TextField,
-  Select,
-  MenuItem,
-  Button,
-  Card,
-  CardContent,
-  Grid,
-  AppBar,
-  Toolbar,
-  CircularProgress,
-  Snackbar,
-  Dialog,
-  DialogTitle,
-  DialogActions,
-} from "@mui/material";
-import CloudIcon from "@mui/icons-material/Cloud";
+import React, { useEffect, useState, useCallback } from "react";
+import "./App.css";
 
-const API = "http://localhost:8000";
-// <script src="https://apis.google.com/js/platform.js" async defer></script>
-// <meta name="google-signin-client_id" content="819505409176-fr96mcdv3mlct7msd9f916qhqb9k2t73.apps.googleusercontent.com">
-const imageCatalog: Record<string, string[]> = {
-  "debian-cloud": ["debian-13", "debian-12", "debian-11"],
-  "ubuntu-os-cloud": ["ubuntu-2404-lts-amd64", "ubuntu-2204-lts"],
-  "centos-cloud": ["centos-stream-10", "centos-stream-9"],
-  "rhel-cloud": ["rhel-10", "rhel-9"],
-  "rocky-linux-cloud": ["rocky-linux-10", "rocky-linux-9"],
-  "cos-cloud": ["cos-125-lts", "cos-121-lts"],
-};
+interface CreateInstanceForm {
+  instance_name: string;
+  instance_zone: string;
+  disk_type: string;
+  image_project: string;
+  image_family: string;
+  machine_type: string;
+  disk_size_gb: number;
+  project_id: string;
+}
 
-export default function App() {
-  const [zones, setZones] = useState<string[]>([]);
-  const [diskTypes, setDiskTypes] = useState<string[]>([]);
-  const [machineTypeMap, setMachineTypeMap] = useState<Record<string, string>>({});
-  const [instances, setInstances] = useState<Record<string, string>>({});
+interface Option {
+  id: string;
+  name: string;
+}
 
-  const [loadingZones, setLoadingZones] = useState(true);
-  const [loadingDisk, setLoadingDisk] = useState(false);
-  const [loadingMachine, setLoadingMachine] = useState(true);
-  const [loadingCreate, setLoadingCreate] = useState(false);
+interface Instance {
+  name: string;
+  zone: string;
+  status: string;
+}
 
-  const [instanceName, setInstanceName] = useState("");
-  const [selectedZone, setSelectedZone] = useState("");
-  const [selectedDisk, setSelectedDisk] = useState("");
-  const [selectedMachineType, setSelectedMachineType] = useState("");
-  const [selectedProject, setSelectedProject] = useState("");
-  const [selectedFamily, setSelectedFamily] = useState("");
-  const [diskSize, setDiskSize] = useState(10);
+const API_BASE = "http://localhost:8000";
+const CLOUD_PREFIX = "/cloud/cloud";
 
-  const [notification, setNotification] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<{ name: string; zone: string } | null>(null);
+const App: React.FC = () => {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [sub, setSub] = useState<string | null>(null);
 
+  const [form, setForm] = useState<CreateInstanceForm>({
+    instance_name: "",
+    instance_zone: "",
+    disk_type: "",
+    image_project: "",
+    image_family: "",
+    machine_type: "",
+    disk_size_gb: 10,
+    project_id: "",
+  });
+
+  const [projects, setProjects] = useState<Option[]>([]);
+  const [zones, setZones] = useState<Option[]>([]);
+  const [machineTypes, setMachineTypes] = useState<Option[]>([]);
+  const [diskTypes, setDiskTypes] = useState<Option[]>([]);
+  const [instances, setInstances] = useState<Instance[]>([]);
+
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [loadingZones, setLoadingZones] = useState(false);
+  const [loadingMachineTypes, setLoadingMachineTypes] = useState(false);
+  const [loadingDiskTypes, setLoadingDiskTypes] = useState(false);
+  const [creatingInstance, setCreatingInstance] = useState(false);
+  const [loadingInstances, setLoadingInstances] = useState(false);
+  const [deletingInstance, setDeletingInstance] = useState<string | null>(null);
+
+  const [message, setMessage] = useState("");
+
+  // Check login status
   useEffect(() => {
-    fetchZones();
-    fetchInstances();
-    fetchMachineTypes();
+    checkLogin();
   }, []);
 
-  const fetchZones = async () => {
-    setLoadingZones(true);
-    try {
-      const res = await fetch(`${API}/get_zones`);
-      const data = await res.json();
-      setZones(Array.isArray(data) ? data : []);
-    } catch {
+  // Load projects when logged in
+  useEffect(() => {
+    if (loggedIn) {
+      fetchProjects();
+    }
+  }, [loggedIn]);
+
+  // Cascade dropdown dependencies
+  useEffect(() => {
+    if (form.project_id) {
+      fetchZones(form.project_id);
+      fetchMachineTypes(form.project_id);
+    } else {
       setZones([]);
-    }
-    setLoadingZones(false);
-  };
-
-  const fetchDiskTypes = async (zone: string) => {
-    setLoadingDisk(true);
-    setSelectedDisk("");
-    try {
-      const res = await fetch(`${API}/disk_types?zone=${zone}`);
-      const data = await res.json();
-      setDiskTypes(Array.isArray(data) ? data : []);
-    } catch {
+      setMachineTypes([]);
       setDiskTypes([]);
+      setInstances([]);
+      setForm((prev) => ({
+        ...prev,
+        instance_zone: "",
+        machine_type: "",
+        disk_type: "",
+      }));
     }
-    setLoadingDisk(false);
-  };
+  }, [form.project_id]);
 
-  const fetchMachineTypes = async () => {
-    setLoadingMachine(true);
+  useEffect(() => {
+    if (form.project_id && form.instance_zone) {
+      fetchDiskTypes(form.instance_zone, form.project_id);
+    } else {
+      setDiskTypes([]);
+      setForm((prev) => ({ ...prev, disk_type: "" }));
+    }
+  }, [form.instance_zone, form.project_id]);
+
+  // Load instances when project changes
+  useEffect(() => {
+    if (loggedIn && form.project_id) {
+      fetchInstances(form.project_id);
+    }
+  }, [loggedIn, form.project_id]);
+
+  const checkLogin = async () => {
     try {
-      const res = await fetch(`${API}/machine_type`, { method: "POST" });
+      const res = await fetch(`${API_BASE}/check_login`, {
+        credentials: "include",
+      });
       const data = await res.json();
-      setMachineTypeMap(data || {});
-    } catch {
-      setMachineTypeMap({});
+      setLoggedIn(data.logged_in);
+      setSub(data.sub || null);
+    } catch (err) {
+      console.error("Error checking login", err);
     }
-    setLoadingMachine(false);
   };
 
-  const fetchInstances = async () => {
+  const handleLogin = () => {
+    window.location.href = `${API_BASE}/login`;
+  };
+
+  const handleLogout = async () => {
     try {
-      const res = await fetch(`${API}/list_instance`);
-      const data = await res.json();
-      setInstances(data || {});
-    } catch {
-      setInstances({});
+      await fetch(`${API_BASE}/logout`, { credentials: "include" });
+    } catch (e) {
+      console.error("Logout error", e);
+    } finally {
+      window.location.href = "http://localhost:5173";
     }
   };
 
-  const filteredMachineTypes = Object.entries(machineTypeMap)
-    .filter(([_, zone]) => {
-      const cleanZone = zone.replace("zones/", "");
-      return cleanZone === selectedZone;
-    })
-    .map(([type]) => type);
+  const fetchProjects = async () => {
+    try {
+      setLoadingProjects(true);
+      const res = await fetch(`${API_BASE}${CLOUD_PREFIX}/get_projects`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : data.items ?? Object.values(data);
+      const options: Option[] = arr.map((p: any) => ({
+        id: p.project_id ?? p.id ?? p.name ?? String(p),
+        name: p.name ?? p.project_id ?? p.id ?? String(p),
+      }));
+      setProjects(options);
+    } catch (err) {
+      console.error("Error fetching projects", err);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
 
-  const createInstance = async () => {
-    if (
-      !instanceName ||
-      !selectedZone ||
-      !selectedDisk ||
-      !selectedMachineType ||
-      !selectedProject ||
-      !selectedFamily
-    ) {
-      setNotification("Please fill all required fields.");
+  const fetchZones = async (projectId: string) => {
+    try {
+      setLoadingZones(true);
+      const res = await fetch(
+        `${API_BASE}${CLOUD_PREFIX}/get_zones?project_id=${encodeURIComponent(projectId)}`,
+        { credentials: "include" }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : data.items ?? [];
+      const options: Option[] = arr.map((z: any) => ({
+        id: z.name ?? z.zone ?? z.id ?? String(z),
+        name: z.name ?? z.zone ?? z.id ?? String(z),
+      }));
+      setZones(options);
+    } catch (err) {
+      console.error("Error fetching zones", err);
+    } finally {
+      setLoadingZones(false);
+    }
+  };
+
+  const fetchMachineTypes = async (projectId: string) => {
+    try {
+      setLoadingMachineTypes(true);
+      const res = await fetch(
+        `${API_BASE}${CLOUD_PREFIX}/machine_type?project_id=${encodeURIComponent(projectId)}`,
+        { method: "POST", credentials: "include" }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const entries = Object.entries<string>(data);
+      const options: Option[] = entries.map(([machineName, zone]) => ({
+        id: machineName,
+        name: `${machineName}`,
+      }));
+      setMachineTypes(options.slice(0, 50)); // Limit to first 50 for UI
+    } catch (err) {
+      console.error("Error fetching machine types", err);
+    } finally {
+      setLoadingMachineTypes(false);
+    }
+  };
+
+  const fetchDiskTypes = async (zone: string, projectId: string) => {
+    try {
+      setLoadingDiskTypes(true);
+      const res = await fetch(
+        `${API_BASE}${CLOUD_PREFIX}/disk_types?zone=${encodeURIComponent(zone)}&project_id=${encodeURIComponent(projectId)}`,
+        { credentials: "include" }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : data.items ?? data.diskTypes ?? [];
+      const options: Option[] = arr.map((d: any) => ({
+        id: d.name ?? d.id ?? String(d),
+        name: d.name ?? d.id ?? String(d),
+      }));
+      setDiskTypes(options);
+    } catch (err) {
+      console.error("Error fetching disk types", err);
+    } finally {
+      setLoadingDiskTypes(false);
+    }
+  };
+
+  const fetchInstances = async (projectId: string) => {
+    try {
+      setLoadingInstances(true);
+      const res = await fetch(
+        `${API_BASE}${CLOUD_PREFIX}/list_instance?project_name=${encodeURIComponent(projectId)}`,
+        { credentials: "include" }
+      );
+      if (!res.ok) return;
+
+      const data = await res.json();
+      console.log("Raw instances response:", data);
+
+      const instancesList: Instance[] = [];
+
+      // Handle GCP aggregatedList format
+      if (data?.items) {
+        Object.entries(data.items).forEach(([zoneKey, zoneData]: [string, any]) => {
+          const zoneName = zoneKey.replace(/^zones\//, "");
+          if (zoneData?.instances?.length) {
+            zoneData.instances.forEach((inst: any) => {
+              if (inst.name) {
+                instancesList.push({
+                  name: inst.name,
+                  zone: zoneName,
+                  status: inst.status || "RUNNING",
+                });
+              }
+            });
+          }
+        });
+      }
+
+      console.log(`Parsed ${instancesList.length} instances`);
+      setInstances(instancesList);
+    } catch (err) {
+      console.error("Error fetching instances:", err);
+    } finally {
+      setLoadingInstances(false);
+    }
+  };
+
+  const deleteInstance = async (instanceName: string, zone: string) => {
+    if (!form.project_id) return;
+
+    try {
+      setDeletingInstance(instanceName);
+      const body = {
+        instance_name: instanceName,
+        zone_name: zone,
+        project_name: form.project_id,
+      };
+
+      const res = await fetch(`${API_BASE}${CLOUD_PREFIX}/delete_instance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      setMessage(`Instance ${instanceName} deleted!`);
+      fetchInstances(form.project_id);
+    } catch (error) {
+      setMessage(`Delete failed: ${error}`);
+    } finally {
+      setDeletingInstance(null);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === "disk_size_gb" ? Number(value) || 10 : value,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage("");
+
+    if (!form.project_id) {
+      setMessage("Please select a project first.");
       return;
     }
 
-    setLoadingCreate(true);
-
     try {
-      const res = await fetch(
-        `${API}/create_machine?instance_name=${instanceName}&instance_zone=${selectedZone}&disk_type=${selectedDisk}&image_project=${selectedProject}&image_family=${selectedFamily}&machine_type=${selectedMachineType}&disk_size_gb=${diskSize}`,
-        { method: "POST" }
-      );
+      setCreatingInstance(true);
 
-      const text = await res.text();
-      setNotification(text || "Instance creation started.");
-      setTimeout(fetchInstances, 5000);
-    } catch {
-      setNotification("Error creating instance.");
+      // Send as JSON body, not query params (your backend expects path params)
+      const createBody = {
+        instance_name: form.instance_name,
+        instance_zone: form.instance_zone,
+        disk_type: form.disk_type,
+        image_project: form.image_project,
+        image_family: form.image_family,
+        machine_type: form.machine_type,
+        disk_size_gb: form.disk_size_gb,
+        project_id: form.project_id,
+      };
+
+      console.log("Creating instance with:", createBody);
+
+      const res = await fetch(`${API_BASE}${CLOUD_PREFIX}/create_machine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createBody),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Create failed:", errorText);
+        throw new Error(errorText || "Failed to create instance");
+      }
+
+      const data = await res.json();
+      setMessage(`Instance "${form.instance_name}" created successfully!`);
+
+      // Refresh instances list
+      setTimeout(() => fetchInstances(form.project_id!), 2000);
+
+      // Reset form
+      setForm(prev => ({ ...prev, instance_name: "" }));
+    } catch (error: any) {
+      console.error("Create error:", error);
+      setMessage(`Create failed: ${error.message}`);
+    } finally {
+      setCreatingInstance(false);
     }
-
-    setLoadingCreate(false);
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-
-    const zoneName = deleteTarget.zone.replace("zones/", "");
-
-    await fetch(
-      `${API}/delete_instance?instance_name=${deleteTarget.name}&zone_name=${zoneName}`,
-      { method: "POST" }
-    );
-
-    setNotification("Delete operation started...");
-    setTimeout(fetchInstances, 5000);
-    setDeleteTarget(null);
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6f9" }}>
-      <AppBar position="static">
-        <Toolbar>
-          <CloudIcon sx={{ mr: 2 }} />
-          <Typography variant="h6">Manab Cloud Dashboard</Typography>
-        </Toolbar>
-      </AppBar>
+    <div className="app">
+      <h1>🌐 Cloud Manager</h1>
 
-      <Box sx={{ p: 4 }}>
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h5">Provision Virtual Machine</Typography>
+      {!loggedIn ? (
+        <div className="login-box">
+          <p>🔐 Please log in with Google to manage cloud instances</p>
+          <button onClick={handleLogin} className="login-btn">
+            Login with Google
+          </button>
+        </div>
+      ) : (
+        <div className="dashboard">
+          <div className="top-bar">
+            <p>👤 Logged in as: <strong>{sub}</strong></p>
+            <button onClick={handleLogout} className="logout-btn">
+              🚪 Logout
+            </button>
+          </div>
 
-                <TextField
-                  fullWidth
-                  label="Instance Name"
-                  sx={{ mt: 2 }}
-                  value={instanceName}
-                  onChange={(e) => setInstanceName(e.target.value)}
-                />
+          <div className="content">
+            <div className="form-section">
+              <h2>➕ Create Instance</h2>
+              <form onSubmit={handleSubmit} className="instance-form">
+                <label>
+                  📁 Project:
+                  <select
+                    name="project_id"
+                    value={form.project_id}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="">{loadingProjects ? "⏳ Loading..." : "Choose project"}</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </label>
 
-                <Select
-                  fullWidth
-                  displayEmpty
-                  sx={{ mt: 2 }}
-                  value={selectedZone}
-                  onChange={(e) => {
-                    const zone = e.target.value;
-                    setSelectedZone(zone);
-                    fetchDiskTypes(zone);
-                  }}
-                >
-                  <MenuItem value="">
-                    {loadingZones ? "Loading Zones..." : "Select Zone"}
-                  </MenuItem>
-                  {zones.map((z) => (
-                    <MenuItem key={z} value={z}>{z}</MenuItem>
-                  ))}
-                </Select>
+                <label>
+                  🌍 Zone:
+                  <select
+                    name="instance_zone"
+                    value={form.instance_zone}
+                    onChange={handleChange}
+                    disabled={!form.project_id || loadingZones}
+                    required
+                  >
+                    <option value="">{loadingZones ? "⏳ Loading..." : "Choose zone"}</option>
+                    {zones.map(z => (
+                      <option key={z.id} value={z.id}>{z.name}</option>
+                    ))}
+                  </select>
+                </label>
 
-                <Select
-                  fullWidth
-                  displayEmpty
-                  sx={{ mt: 2 }}
-                  value={selectedDisk}
-                  onChange={(e) => setSelectedDisk(e.target.value)}
-                >
-                  <MenuItem value="">
-                    {loadingDisk ? "Loading Disk Types..." : "Select Disk Type"}
-                  </MenuItem>
-                  {diskTypes.map((d) => (
-                    <MenuItem key={d} value={d}>{d}</MenuItem>
-                  ))}
-                </Select>
+                <label>
+                  💻 Machine Type:
+                  <select
+                    name="machine_type"
+                    value={form.machine_type}
+                    onChange={handleChange}
+                    disabled={!form.project_id || loadingMachineTypes}
+                    required
+                  >
+                    <option value="">{loadingMachineTypes ? "⏳ Loading..." : "Choose type"}</option>
+                    {machineTypes.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </label>
 
-                <TextField
-                  type="number"
-                  fullWidth
-                  sx={{ mt: 2 }}
-                  label="Disk Size (GB)"
-                  value={diskSize}
-                  onChange={(e) => setDiskSize(Number(e.target.value))}
-                />
+                <label>
+                  💾 Disk Type:
+                  <select
+                    name="disk_type"
+                    value={form.disk_type}
+                    onChange={handleChange}
+                    disabled={!form.project_id || !form.instance_zone || loadingDiskTypes}
+                    required
+                  >
+                    <option value="">{loadingDiskTypes ? "⏳ Loading..." : "Choose disk"}</option>
+                    {diskTypes.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </label>
 
-                <Select
-                  fullWidth
-                  displayEmpty
-                  sx={{ mt: 2 }}
-                  value={selectedMachineType}
-                  disabled={!selectedZone}
-                  onChange={(e) => setSelectedMachineType(e.target.value)}
-                >
-                  <MenuItem value="">
-                    {loadingMachine ? "Loading Machine Types..." : "Select Machine Type"}
-                  </MenuItem>
+                <div className="image-info">
+                  <p>
+                    📚 Need <strong>image project</strong> and <strong>image family</strong>? See Google Cloud's{" "}
+                    <a href="https://docs.cloud.google.com/compute/docs/images/os-details" target="_blank" rel="noreferrer">
+                      OS Details
+                    </a>
+                  </p>
+                </div>
 
-                  {filteredMachineTypes.length === 0 && selectedZone && !loadingMachine && (
-                    <MenuItem disabled>No machine types available</MenuItem>
+                <label>
+                  🖼️ Image Project:
+                  <input name="image_project" value={form.image_project} onChange={handleChange} required />
+                </label>
+
+                <label>
+                  🖼️ Image Family:
+                  <input name="image_family" value={form.image_family} onChange={handleChange} required />
+                </label>
+
+                <label>
+                  🆔 Instance Name:
+                  <input name="instance_name" value={form.instance_name} onChange={handleChange} required />
+                </label>
+
+                <label>
+                  📏 Disk Size (GB):
+                  <input
+                    name="disk_size_gb"
+                    type="number"
+                    min="10"
+                    max="1000"
+                    value={form.disk_size_gb}
+                    onChange={handleChange}
+                  />
+                </label>
+
+                <button type="submit" className="create-btn" disabled={creatingInstance}>
+                  {creatingInstance ? (
+                    <>
+                      <span className="spinner"></span>
+                      Creating Instance...
+                    </>
+                  ) : (
+                    "🚀 Create Instance"
                   )}
+                </button>
+              </form>
+            </div>
 
-                  {filteredMachineTypes.map((m) => (
-                    <MenuItem key={m} value={m}>{m}</MenuItem>
-                  ))}
-                </Select>
+            {form.project_id && (
+              <div className="instances-section">
+                <h2>📋 Instances ({instances.length}) {loadingInstances && <span className="spinner small"></span>}</h2>
+                {loadingInstances ? (
+                  <p>⏳ Loading instances...</p>
+                ) : instances.length === 0 ? (
+                  <p>👻 No instances found in this project</p>
+                ) : (
+                  <div className="instances-table">
+                    <div className="table-header">
+                      <span>Instance</span>
+                      <span>Zone</span>
+                      <span>Status</span>
+                      <span>Action</span>
+                    </div>
+                    {instances.map((instance) => (
+                      <div key={instance.name} className="table-row">
+                        <span>{instance.name}</span>
+                        <span>{instance.zone}</span>
+                        <span className={`status ${instance.status.toLowerCase()}`}>
+                          {instance.status}
+                        </span>
+                        <button
+                          className="delete-btn"
+                          onClick={() => deleteInstance(instance.name, instance.zone)}
+                          disabled={deletingInstance === instance.name}
+                        >
+                          {deletingInstance === instance.name ? (
+                            <>
+                              <span className="spinner tiny"></span>
+                              Deleting...
+                            </>
+                          ) : (
+                            "🗑️ Delete"
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
-                <Select
-                  fullWidth
-                  displayEmpty
-                  sx={{ mt: 2 }}
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
-                >
-                  <MenuItem value="">Select Image Project</MenuItem>
-                  {Object.keys(imageCatalog).map((p) => (
-                    <MenuItem key={p} value={p}>{p}</MenuItem>
-                  ))}
-                </Select>
-
-                <Select
-                  fullWidth
-                  displayEmpty
-                  sx={{ mt: 2 }}
-                  value={selectedFamily}
-                  disabled={!selectedProject}
-                  onChange={(e) => setSelectedFamily(e.target.value)}
-                >
-                  <MenuItem value="">Select Image Family</MenuItem>
-                  {(imageCatalog[selectedProject] || []).map((f) => (
-                    <MenuItem key={f} value={f}>{f}</MenuItem>
-                  ))}
-                </Select>
-
-                <Button
-                  fullWidth
-                  variant="contained"
-                  sx={{ mt: 3 }}
-                  onClick={createInstance}
-                  disabled={loadingCreate}
-                >
-                  {loadingCreate ? <CircularProgress size={24} /> : "Create Instance"}
-                </Button>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h5">Active Instances</Typography>
-
-                {Object.entries(instances).map(([name, zone]) => (
-                  <Box key={name} sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
-                    <Box>
-                      <Typography>{name}</Typography>
-                      <Typography variant="body2">{zone}</Typography>
-                    </Box>
-                    <Button color="error" onClick={() => setDeleteTarget({ name, zone })}>
-                      Delete
-                    </Button>
-                  </Box>
-                ))}
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      </Box>
-
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
-        <DialogTitle>Delete {deleteTarget?.name}?</DialogTitle>
-        <DialogActions>
-          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
-          <Button color="error" onClick={confirmDelete}>Delete</Button>
-        </DialogActions>
-      </Dialog>
-      <Snackbar
-        open={!!notification}
-        autoHideDuration={4000}
-        message={notification}
-        onClose={() => setNotification("")}
-      />
-    </Box>
+          {message && (
+            <div className="message">
+              {message}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
-}
+};
+
+export default App;

@@ -22,7 +22,7 @@ router = APIRouter()
 
 #Middleware
 app.add_middleware(SessionMiddleware, secret_key="!secret")
-origins = ["http://localhost:8000"]
+origins = ["*"]
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
@@ -53,6 +53,16 @@ app.include_router(cloud, prefix="/cloud")
 @app.get('/test')
 async def test(request:Request, db: AsyncSession = Depends(get_db)):
     return await get_token(request, db)
+
+@app.get("/me")
+async def get_current_user(request: Request):
+    user = request.session.get("sub")
+    if not user:
+        return JSONResponse({"authenticated": False})
+    return JSONResponse({
+        "authenticated": True,
+        "user": user
+    })
 
 @app.get('/')
 async def homepage(request: Request):
@@ -85,16 +95,8 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db)):
     refreshtoken = token.get('refresh_token')
     sub = userinfo['sub'] #from the user info dict i extracted unique sub field it is unique to every id
     await store_token(usertoken, refreshtoken, sub, db)
-    print(token)
     if usertoken:
         request.session['sub'] = sub #We temporarily store this in our session middleware and it sends us cookie to our browser
-        request.session['access_token'] = usertoken
-        request.session['refresh_token'] = refreshtoken
-        print(request.session)
-        print("ACEESS TOKEN")
-        print(request.session.get('access_token'))
-        print("request TOKEN below as well")
-        print(request.session.get('refresh_token'))
     return RedirectResponse(url='/')
 
 @app.get('/logout')
@@ -102,8 +104,15 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     sub = request.session.get('sub')
     await delete_token(sub, db)
     request.session.pop('sub', None) #This sends a HTTP requests back to the client browser to unset the cookie
-    request.session.pop('access_token', None)
     request.session.clear()
     return RedirectResponse(url='/')
+
+
+@app.get("/check_login")
+async def check_login(request: Request):
+    sub = request.session.get("sub")
+    if sub:
+        return {"logged_in": True, "sub": sub}
+    return {"logged_in": False}
 
 

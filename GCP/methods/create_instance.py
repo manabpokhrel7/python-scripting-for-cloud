@@ -29,9 +29,14 @@ import warnings
 
 from google.api_core.extended_operation import ExtendedOperation
 from google.cloud import compute_v1
-
-
-def get_image_from_family(project: str, family: str) -> compute_v1.Image:
+from google.oauth2.credentials import Credentials
+from database.crud import get_token
+from config.config import Config
+from starlette.requests import Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from google.cloud import resourcemanager_v3
+#
+async def get_image_from_family(request: Request, db: AsyncSession, project: str, family: str) -> compute_v1.Image:
     """
     Retrieve the newest image that is part of a given family in a project.
 
@@ -42,13 +47,19 @@ def get_image_from_family(project: str, family: str) -> compute_v1.Image:
     Returns:
         An Image object.
     """
-    image_client = compute_v1.ImagesClient()
+    # Get tokens from database
+    token = await get_token(request, db)
+
+    cred = Credentials(token=token['access_token'], refresh_token=token['refresh_token'], token_uri=Config.token_uri,
+                       client_id=Config.client_id, client_secret=Config.client_secret)
+
+    image_client = compute_v1.ImagesClient(credentials=cred)
     # List of public operating system (OS) images: https://cloud.google.com/compute/docs/images/os-details
     newest_image = image_client.get_from_family(project=project, family=family)
     return newest_image
 
 
-def disk_from_image(
+async def disk_from_image(
     disk_type: str,
     disk_size_gb: int,
     boot: bool,
@@ -86,7 +97,7 @@ def disk_from_image(
     return boot_disk
 
 
-def wait_for_extended_operation(
+async def wait_for_extended_operation(
     operation: ExtendedOperation, verbose_name: str = "operation", timeout: int = 300
 ) -> Any:
     """
@@ -134,12 +145,14 @@ def wait_for_extended_operation(
     return result
 
 
-def create_instance(
+async def create_instance(
     project_id: str ,
     zone: str,
     instance_name: str,
     disks: list[compute_v1.AttachedDisk],
     machine_type: str ,
+    request: Request,
+    db: AsyncSession,
     network_link: str = "global/networks/default",
     subnetwork_link: str = None,
     internal_ip: str = None,
@@ -192,79 +205,88 @@ def create_instance(
     Returns:
         Instance object.
     """
-    instance_client = compute_v1.InstancesClient()
+    # Get tokens from database
+    try:
+        token = await get_token(request, db)
 
-    # Use the network interface provided in the network_link argument.
-    network_interface = compute_v1.NetworkInterface()
-    network_interface.network = network_link
-    if subnetwork_link:
-        network_interface.subnetwork = subnetwork_link
+        cred = Credentials(token=token['access_token'], refresh_token=token['refresh_token'], token_uri=Config.token_uri,
+                           client_id=Config.client_id, client_secret=Config.client_secret)
 
-    if internal_ip:
-        network_interface.network_i_p = internal_ip
+        instance_client = compute_v1.InstancesClient(credentials=cred)
 
-    if external_access:
-        access = compute_v1.AccessConfig()
-        access.type_ = compute_v1.AccessConfig.Type.ONE_TO_ONE_NAT.name
-        access.name = "External NAT"
-        access.network_tier = access.NetworkTier.PREMIUM.name
-        if external_ipv4:
-            access.nat_i_p = external_ipv4
-        network_interface.access_configs = [access]
+        # Use the network interface provided in the network_link argument.
+        network_interface = compute_v1.NetworkInterface()
+        network_interface.network = network_link
+        if subnetwork_link:
+            network_interface.subnetwork = subnetwork_link
 
-    # Collect information into the Instance object.
-    instance = compute_v1.Instance()
-    instance.network_interfaces = [network_interface]
-    instance.name = instance_name
-    instance.disks = disks
-    if re.match(r"^zones/[a-z\d\-]+/machineTypes/[a-z\d\-]+$", machine_type):
-        instance.machine_type = machine_type
-    else:
-        instance.machine_type = f"zones/{zone}/machineTypes/{machine_type}"
+        if internal_ip:
+            network_interface.network_i_p = internal_ip
 
-    instance.scheduling = compute_v1.Scheduling()
-    if accelerators:
-        instance.guest_accelerators = accelerators
-        instance.scheduling.on_host_maintenance = (
-            compute_v1.Scheduling.OnHostMaintenance.TERMINATE.name
-        )
+        if external_access:
+            access = compute_v1.AccessConfig()
+            access.type_ = compute_v1.AccessConfig.Type.ONE_TO_ONE_NAT.name
+            access.name = "External NAT"
+            access.network_tier = access.NetworkTier.PREMIUM.name
+            if external_ipv4:
+                access.nat_i_p = external_ipv4
+            network_interface.access_configs = [access]
 
-    if preemptible:
-        # Set the preemptible setting
-        warnings.warn(
-            "Preemptible VMs are being replaced by Spot VMs.", DeprecationWarning
-        )
+        # Collect information into the Instance object.
+        instance = compute_v1.Instance()
+        instance.network_interfaces = [network_interface]
+        instance.name = instance_name
+        instance.disks = disks
+        if re.match(r"^zones/[a-z\d\-]+/machineTypes/[a-z\d\-]+$", machine_type):
+            instance.machine_type = machine_type
+        else:
+            instance.machine_type = f"zones/{zone}/machineTypes/{machine_type}"
+
         instance.scheduling = compute_v1.Scheduling()
-        instance.scheduling.preemptible = True
+        if accelerators:
+            instance.guest_accelerators = accelerators
+            instance.scheduling.on_host_maintenance = (
+                compute_v1.Scheduling.OnHostMaintenance.TERMINATE.name
+            )
 
-    if spot:
-        # Set the Spot VM setting
-        instance.scheduling.provisioning_model = (
-            compute_v1.Scheduling.ProvisioningModel.SPOT.name
-        )
-        instance.scheduling.instance_termination_action = instance_termination_action
+        if preemptible:
+            # Set the preemptible setting
+            warnings.warn(
+                "Preemptible VMs are being replaced by Spot VMs.", DeprecationWarning
+            )
+            instance.scheduling = compute_v1.Scheduling()
+            instance.scheduling.preemptible = True
 
-    if custom_hostname is not None:
-        # Set the custom hostname for the instance
-        instance.hostname = custom_hostname
+        if spot:
+            # Set the Spot VM setting
+            instance.scheduling.provisioning_model = (
+                compute_v1.Scheduling.ProvisioningModel.SPOT.name
+            )
+            instance.scheduling.instance_termination_action = instance_termination_action
 
-    if delete_protection:
-        # Set the delete protection bit
-        instance.deletion_protection = True
+        if custom_hostname is not None:
+            # Set the custom hostname for the instance
+            instance.hostname = custom_hostname
 
-    # Prepare the request to insert an instance.
-    request = compute_v1.InsertInstanceRequest()
-    request.zone = zone
-    request.project = project_id
-    request.instance_resource = instance
+        if delete_protection:
+            # Set the delete protection bit
+            instance.deletion_protection = True
 
-    # Wait for the create operation to complete.
-    print(f"Creating the {instance_name} instance in {zone}...")
+        # Prepare the request to insert an instance.
+        request = compute_v1.InsertInstanceRequest()
+        request.zone = zone
+        request.project = project_id
+        request.instance_resource = instance
 
-    operation = instance_client.insert(request=request)
+        # Wait for the create operation to complete.
+        print(f"Creating the {instance_name} instance in {zone}...")
 
-    wait_for_extended_operation(operation, "instance creation")
+        operation = instance_client.insert(request=request)
 
-    print(f"Instance {instance_name} created.")
-    return instance_client.get(project=project_id, zone=zone, instance=instance_name)
+        await wait_for_extended_operation(operation, "instance creation")
+
+        print(f"Instance {instance_name} created.")
+        return instance_client.get(project=project_id, zone=zone, instance=instance_name)
+    except Exception as e:
+        return f"Error: {e}"
 
