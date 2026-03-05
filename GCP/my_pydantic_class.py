@@ -31,3 +31,30 @@ class CreateResponse(BaseModel):
 
 class UserResponse(BaseModel):
     name: str
+
+
+###Below is for the cloud Routes
+
+class getProject(BaseModel):
+    project_id: str
+
+class getImage(BaseModel):
+    family_id: str
+    image_project_id: str
+
+class getZone(getProject):
+    zone: str
+
+class deleteInstance(getZone):
+    instance_name: str
+
+class createInstance(BaseModel):
+    project_id: str
+    zone: str
+    instance_name: str
+    machine_type: str
+    image_project: str
+    image_family: str
+    disk_type: str
+    disk_size_gb: int
+

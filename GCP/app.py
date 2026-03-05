@@ -15,13 +15,16 @@ from authlib.integrations.starlette_client import OAuth, OAuthError
 from database.crud import store_token, delete_token, get_token
 from sqlalchemy.ext.asyncio import AsyncSession
 from oauth import oauth
+import os
+from dotenv import load_dotenv
 
-
+load_dotenv()
 app = FastAPI()
 router = APIRouter()
 
+secret_key = os.getenv("SECRET_KEY")
 #Middleware
-app.add_middleware(SessionMiddleware, secret_key="!secret")
+app.add_middleware(SessionMiddleware, secret_key=secret_key)
 origins = ["*"]
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 

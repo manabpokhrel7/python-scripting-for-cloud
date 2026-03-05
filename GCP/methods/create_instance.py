@@ -21,12 +21,12 @@
 
 # [START compute_instances_create]
 from __future__ import annotations
-
+from logger import logger
 import re
 import sys
 from typing import Any
 import warnings
-
+from fastapi import HTTPException
 from google.api_core.extended_operation import ExtendedOperation
 from google.cloud import compute_v1
 from google.oauth2.credentials import Credentials
@@ -288,5 +288,6 @@ async def create_instance(
         print(f"Instance {instance_name} created.")
         return instance_client.get(project=project_id, zone=zone, instance=instance_name)
     except Exception as e:
-        return f"Error: {e}"
+        logger.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
