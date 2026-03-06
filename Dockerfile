@@ -1,7 +1,23 @@
-FROM python:3.14-slim
+# Use an official Node.js runtime as a parent image
+FROM node:16-alpine
+
+# Set the working directory in the container
 WORKDIR /app
-COPY GCP/requirements.txt .
-RUN pip install -r requirements.txt
-COPY GCP/*.py .
-EXPOSE 8000
-CMD ["uvicorn", "app:app", "--reload", "--host", "0.0.0.0", "--port", "8000" ]
+
+# Copy the package.json and package-lock.json files
+COPY package*.json ./
+
+# Install any needed packages specified in package.json
+RUN npm install
+
+# Bundle app source inside Docker image
+COPY . .
+
+# Build the React application
+RUN npm run build
+
+# Use Nginx to serve the React application
+FROM nginx:alpine
+COPY --from=0 /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
