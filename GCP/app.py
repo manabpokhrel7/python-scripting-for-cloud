@@ -25,8 +25,8 @@ router = APIRouter()
 secret_key = os.getenv("SECRET_KEY")
 #Middleware
 app.add_middleware(SessionMiddleware, secret_key=secret_key)
-origins = ["*"]
-app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"],)
 
 
 @app.on_event("startup")
@@ -100,7 +100,7 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db)):
     await store_token(usertoken, refreshtoken, sub, db)
     if usertoken:
         request.session['sub'] = sub #We temporarily store this in our session middleware and it sends us cookie to our browser
-    return RedirectResponse(url='/')
+    return RedirectResponse(url='http://localhost:5173')
 
 @app.get('/logout')
 async def logout(request: Request, db: AsyncSession = Depends(get_db)):
@@ -108,7 +108,7 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     await delete_token(sub, db)
     request.session.pop('sub', None) #This sends a HTTP requests back to the client browser to unset the cookie
     request.session.clear()
-    return RedirectResponse(url='/')
+    return RedirectResponse(url='http://localhost:5173')
 
 
 @app.get("/check_login")

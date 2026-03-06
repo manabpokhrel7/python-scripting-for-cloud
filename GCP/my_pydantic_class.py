@@ -58,3 +58,25 @@ class createInstance(BaseModel):
     disk_type: str
     disk_size_gb: int
 
+
+#Cloud Response Model
+class projectResponse(BaseModel):
+    project_name: list[str]
+
+class zoneResponse(BaseModel):
+    zone_name: list[str]
+
+class imageResponse(BaseModel):
+    image_name: str
+
+class diskResponse(BaseModel):
+    disk_name: list[str]
+
+class machineResponse(BaseModel):
+    machine_name: dict
+
+class instanceResponse(BaseModel):
+    instance_name: dict
+
+class deleteResponse(BaseModel):
+    delete_details: str

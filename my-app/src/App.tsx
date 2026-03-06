@@ -1,458 +1,371 @@
 import React, { useEffect, useState } from "react";
-import "./App.css";
-
-interface CreateInstanceForm {
-  instance_name: string;
-  instance_zone: string;
-  disk_type: string;
-  image_project: string;
-  image_family: string;
-  machine_type: string;
-  disk_size_gb: number;
-  project_id: string;
-}
-
-interface Option {
-  id: string;
-  name: string;
-}
+import './App.css';
 
 const API_BASE = "http://localhost:8000";
 
-// If your router is APIRouter(prefix="/cloud") and you include it with
-// app.include_router(cloud, prefix="/cloud"), keep this as "/cloud/cloud".
-// If you fix your backend to have only one /cloud, change this to "/cloud".
-const CLOUD_PREFIX = "/cloud/cloud";
+interface FormData {
+  project_id: string;
+  zone: string;
+  instance_name: string;
+  machine_type: string;
+  image_project: string;
+  image_family: string;
+  disk_type: string;
+  disk_size_gb: number;
+}
+
+interface Instance {
+  name: string;
+  zone: string;
+  machine_type: string;
+  status: string;
+}
 
 const App: React.FC = () => {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [sub, setSub] = useState<string | null>(null);
+  const [sub, setSub] = useState("");
 
-  const [form, setForm] = useState<CreateInstanceForm>({
-    instance_name: "",
-    instance_zone: "",
-    disk_type: "",
-    image_project: "",
-    image_family: "",
-    machine_type: "",
-    disk_size_gb: 10,
+  const [form, setForm] = useState<FormData>({
     project_id: "",
+    zone: "",
+    instance_name: "",
+    machine_type: "",
+    image_project: "debian-cloud",
+    image_family: "debian-12",
+    disk_type: "",
+    disk_size_gb: 20,
   });
 
-  const [projects, setProjects] = useState<Option[]>([]);
-  const [zones, setZones] = useState<Option[]>([]);
-  const [machineTypes, setMachineTypes] = useState<Option[]>([]);
-  const [diskTypes, setDiskTypes] = useState<Option[]>([]);
-
-  const [loadingProjects, setLoadingProjects] = useState(false);
-  const [loadingZones, setLoadingZones] = useState(false);
-  const [loadingMachineTypes, setLoadingMachineTypes] = useState(false);
-  const [loadingDiskTypes, setLoadingDiskTypes] = useState(false);
-
+  const [projects, setProjects] = useState<string[]>([]);
+  const [zones, setZones] = useState<string[]>([]);
+  const [machineTypes, setMachineTypes] = useState<{ [key: string]: string }>({});
+  const [diskTypes, setDiskTypes] = useState<string[]>([]);
+  const [instances, setInstances] = useState<Instance[]>([]);
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadingInstances, setLoadingInstances] = useState(false);
+  const [loadingMachineTypes, setLoadingMachineTypes] = useState(false);
 
+  // ------------------------
+  // Check login
+  // ------------------------
   useEffect(() => {
+    const checkLogin = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/check_login`, { credentials: "include" });
+        const data = await res.json();
+        setLoggedIn(data.logged_in);
+        setSub(data.sub || "");
+        if (data.logged_in) fetchProjects();
+      } catch (e) {
+        console.error("Login check failed", e);
+      }
+    };
     checkLogin();
   }, []);
 
-  useEffect(() => {
-    if (loggedIn) {
-      fetchProjects();
-    }
-  }, [loggedIn]);
+  // ------------------------
+  // Login / Logout
+  // ------------------------
+  const handleLogin = () => (window.location.href = `${API_BASE}/login`);
+  // ------------------------
+// Login / Logout
+// ------------------------
+// ------------------------
+// Login / Logout
+// ------------------------
+const handleLogout = () => {
+  window.location.href = `${API_BASE}/logout`;
+};
 
-  useEffect(() => {
-    if (form.project_id) {
-      fetchZones(form.project_id);
-      fetchMachineTypes(form.project_id);
-    } else {
-      setZones([]);
-      setMachineTypes([]);
-      setDiskTypes([]);
-      setForm((prev) => ({
-        ...prev,
-        instance_zone: "",
-        machine_type: "",
-        disk_type: "",
-      }));
-    }
-  }, [form.project_id]);
-
-  useEffect(() => {
-    if (form.project_id && form.instance_zone) {
-      fetchDiskTypes(form.instance_zone, form.project_id);
-    } else {
-      setDiskTypes([]);
-      setForm((prev) => ({ ...prev, disk_type: "" }));
-    }
-  }, [form.instance_zone, form.project_id]);
-
-  const checkLogin = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/check_login`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      setLoggedIn(data.logged_in);
-      setSub(data.sub || null);
-    } catch (err) {
-      console.error("Error checking login", err);
-    }
-  };
-
-  const handleLogin = () => {
-    window.location.href = `${API_BASE}/login`;
-  };
-
-  const handleLogout = async () => {
-    try {
-      await fetch(`${API_BASE}/logout`, { credentials: "include" });
-    } catch (e) {
-      console.error("Logout error", e);
-    } finally {
-      setLoggedIn(false);
-      setSub(null);
-      setProjects([]);
-      setZones([]);
-      setMachineTypes([]);
-      setDiskTypes([]);
-      window.location.href = "http://localhost:5173";
-    }
-  };
-
+  // ------------------------
+  // Fetch projects
+  // ------------------------
   const fetchProjects = async () => {
     try {
-      setLoadingProjects(true);
-      const res = await fetch(`${API_BASE}${CLOUD_PREFIX}/get_projects`, {
+      const res = await fetch(`${API_BASE}/cloud/get_projects`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
+        body: JSON.stringify({}),
       });
-      if (!res.ok) {
-        console.error("get_projects failed:", await res.text());
-        return;
-      }
+      if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      // Adjust mapping based on actual response from get_projects
-      const arr = Array.isArray(data) ? data : data.items ?? [];
-      const options: Option[] = arr.map((p: any) => ({
-        id: p.project_id ?? p.id ?? String(p),
-        name: p.name ?? p.project_id ?? p.id ?? String(p),
-      }));
-      setProjects(options);
-    } catch (err) {
-      console.error("Error fetching projects", err);
-    } finally {
-      setLoadingProjects(false);
+      setProjects(data.project_name || []);
+    } catch (e: any) {
+      console.error("Projects fetch failed:", e.message);
+      setMessage(`❌ ${e.message}`);
     }
   };
 
+  // ------------------------
+  // Fetch zones
+  // ------------------------
   const fetchZones = async (projectId: string) => {
     try {
-      setLoadingZones(true);
-      const res = await fetch(
-        `${API_BASE}${CLOUD_PREFIX}/get_zones?project_id=${encodeURIComponent(
-          projectId
-        )}`,
-        { credentials: "include" }
-      );
-      if (!res.ok) {
-        console.error("get_zones failed:", await res.text());
-        return;
-      }
+      const res = await fetch(`${API_BASE}/cloud/get_zones`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ project_id: projectId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      const arr = Array.isArray(data) ? data : data.items ?? [];
-      const options: Option[] = arr.map((z: any) => ({
-        id: z.id ?? z.zone ?? z.name ?? String(z),
-        name: z.name ?? z.zone ?? z.id ?? String(z),
-      }));
-      setZones(options);
-    } catch (err) {
-      console.error("Error fetching zones", err);
-    } finally {
-      setLoadingZones(false);
+      setZones(data.zone_name || []);
+    } catch (e: any) {
+      console.error("Zones fetch failed:", e.message);
+      setMessage(`❌ ${e.message}`);
     }
   };
 
+  // ------------------------
+  // Fetch machine types
+  // ------------------------
   const fetchMachineTypes = async (projectId: string) => {
+    setLoadingMachineTypes(true);
     try {
-      setLoadingMachineTypes(true);
-      const res = await fetch(
-        `${API_BASE}${CLOUD_PREFIX}/machine_type?project_id=${encodeURIComponent(
-          projectId
-        )}`,
-        {
-          method: "POST",
-          credentials: "include",
-        }
-      );
-      if (!res.ok) {
-        console.error("machine_type failed:", await res.text());
-        return;
-      }
+      const res = await fetch(`${API_BASE}/cloud/machine_type`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ project_id: projectId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      console.log("machine_type response:", data);
-      // If your backend returns { "items": [...] } change to data.items
-      const arr = Array.isArray(data) ? data : data.items ?? [];
-      const options: Option[] = arr.map((m: any) => ({
-        id: m.id ?? m.machine_type ?? m.name ?? String(m),
-        name: m.name ?? m.machine_type ?? m.id ?? String(m),
-      }));
-      setMachineTypes(options);
-    } catch (err) {
-      console.error("Error fetching machine types", err);
+      setMachineTypes(data.machine_name || {});
+    } catch (e) {
+      console.error("Machine types error:", e);
+      setMachineTypes({});
     } finally {
       setLoadingMachineTypes(false);
     }
   };
 
-  const fetchDiskTypes = async (zone: string, projectId: string) => {
+  // ------------------------
+  // Fetch disk types
+  // ------------------------
+  const fetchDiskTypes = async (projectId: string, zone: string) => {
     try {
-      setLoadingDiskTypes(true);
-      const res = await fetch(
-        `${API_BASE}${CLOUD_PREFIX}/disk_types?zone=${encodeURIComponent(
-          zone
-        )}&project_id=${encodeURIComponent(projectId)}`,
-        { credentials: "include" }
-      );
-      if (!res.ok) {
-        console.error("disk_types failed:", await res.text());
-        return;
-      }
-      const data = await res.json();
-      const arr = Array.isArray(data) ? data : data.items ?? [];
-      const options: Option[] = arr.map((d: any) => ({
-        id: d.id ?? d.disk_type ?? d.name ?? String(d),
-        name: d.name ?? d.disk_type ?? d.id ?? String(d),
-      }));
-      setDiskTypes(options);
-    } catch (err) {
-      console.error("Error fetching disk types", err);
-    } finally {
-      setLoadingDiskTypes(false);
-    }
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: name === "disk_size_gb" ? Number(value) : value,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage("");
-    try {
-      const params = new URLSearchParams({
-        instance_name: form.instance_name,
-        instance_zone: form.instance_zone,
-        disk_type: form.disk_type,
-        image_project: form.image_project,
-        image_family: form.image_family,
-        machine_type: form.machine_type,
-        disk_size_gb: form.disk_size_gb.toString(),
-        project_id: form.project_id,
+      const res = await fetch(`${API_BASE}/cloud/disk_types`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ project_id: projectId, zone }),
       });
-
-      const res = await fetch(
-        `${API_BASE}${CLOUD_PREFIX}/create_machine?${params.toString()}`,
-        { method: "POST", credentials: "include" }
-      );
-
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || "Failed to create instance");
-      }
-
+      if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      setMessage(
-        typeof data === "string" ? data : "Instance created successfully."
-      );
-    } catch (error) {
-      console.error(error);
-      setMessage("Error creating instance.");
+      setDiskTypes(data.disk_name || []);
+    } catch (e: any) {
+      console.error("Disk types fetch failed:", e.message);
+      setMessage(`❌ ${e.message}`);
     }
   };
+
+  // ------------------------
+  // Fetch instances
+  // ------------------------
+  const fetchInstances = async () => {
+    if (!form.project_id) {
+      setMessage("❌ Please select a project first to list instances");
+      return;
+    }
+
+    try {
+      setLoadingInstances(true);
+      setMessage("");
+      const res = await fetch(`${API_BASE}/cloud/list_instance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ project_id: form.project_id }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+
+      const instancesArr: Instance[] = Object.entries(data.instance_name || {}).map(
+        ([name, zoneValue]: [string, string]) => ({
+          name,
+          zone: zoneValue.replace("zones/", ""),
+          machine_type: "",
+          status: "Unknown",
+        })
+      );
+
+      setInstances(instancesArr);
+      setMessage(`✅ Instances fetched successfully`);
+    } catch (e: any) {
+      setMessage(`❌ ${e.message}`);
+    } finally {
+      setLoadingInstances(false);
+    }
+  };
+
+  // ------------------------
+  // Delete instance
+  // ------------------------
+  const handleDelete = async (instanceName: string, zone: string) => {
+    try {
+      setLoading(true);
+      setMessage("");
+      const res = await fetch(`${API_BASE}/cloud/delete_instance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ instance_name: instanceName, zone, project_id: form.project_id }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setMessage(`✅ ${data.delete_details || "Instance deleted"}`);
+      setInstances((prev) => prev.filter((i) => i.name !== instanceName));
+    } catch (e: any) {
+      setMessage(`❌ ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ------------------------
+  // Form handlers
+  // ------------------------
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: name === "disk_size_gb" ? Number(value) : value }));
+
+    if (name === "project_id") {
+      setForm((prev) => ({ ...prev, zone: "", machine_type: "", disk_type: "" }));
+      fetchZones(value);
+      fetchMachineTypes(value);
+      setDiskTypes([]);
+    }
+
+    if (name === "zone") {
+      setForm((prev) => ({ ...prev, disk_type: "" }));
+      fetchDiskTypes(form.project_id, value);
+    }
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setMessage("");
+      const res = await fetch(`${API_BASE}/cloud/create_machine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setMessage(`✅ Created instance "${form.instance_name}"`);
+      setForm((prev) => ({ ...prev, instance_name: "" }));
+    } catch (e: any) {
+      setMessage(`❌ ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ------------------------
+  // Render
+  // ------------------------
+  if (!loggedIn) {
+    return (
+      <div className="centered">
+        <h1>Cloud Manager</h1>
+        <button onClick={handleLogin} className="btn-primary">Login with Google</button>
+        {message && <p className="message error">{message}</p>}
+      </div>
+    );
+  }
 
   return (
-    <div className="app">
-      <h1>Cloud Manager</h1>
-
-      {!loggedIn ? (
-        <div className="login-box">
-          <p>Please log in with Google to continue.</p>
-          <button onClick={handleLogin} className="login-btn">
-            Login with Google
-          </button>
+    <div className="container">
+      <div className="header">
+        <h1>Cloud Manager</h1>
+        <div>
+          <span>User: {sub}</span>
+          <button onClick={handleLogout} className="btn-logout">Logout</button>
         </div>
-      ) : (
-        <div className="dashboard">
-          <div className="top-bar">
-            <p>
-              Logged in as: <strong>{sub}</strong>
-            </p>
-            <button onClick={handleLogout} className="logout-btn">
-              Logout
-            </button>
-          </div>
+      </div>
 
-          <h2>Create Cloud Instance</h2>
+      <form onSubmit={handleCreate} className="form">
+        <h2>Create VM</h2>
 
-          <form onSubmit={handleSubmit} className="instance-form">
-            <label>
-              Project:
-              <select
-                name="project_id"
-                value={form.project_id}
-                onChange={handleChange}
-                required
+        <label>Project:</label>
+        <select name="project_id" value={form.project_id} onChange={handleChange} required>
+          <option value="">Select project</option>
+          {projects.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+
+        <label>Zone:</label>
+        <select name="zone" value={form.zone} onChange={handleChange} required disabled={!form.project_id}>
+          <option value="">Select zone</option>
+          {zones.map((z) => <option key={z} value={z}>{z}</option>)}
+        </select>
+
+        <label>Machine Type:</label>
+        <select name="machine_type" value={form.machine_type} onChange={handleChange} required disabled={!form.project_id}>
+          <option value="">Select machine</option>
+          {Object.keys(machineTypes).map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+        {loadingMachineTypes && <span className="loading">Loading machines...</span>}
+
+        <label>Disk Type:</label>
+        <select name="disk_type" value={form.disk_type} onChange={handleChange} required disabled={!form.zone}>
+          <option value="">Select disk</option>
+          {diskTypes.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
+
+        <label>Instance Name:</label>
+        <input name="instance_name" value={form.instance_name} onChange={handleChange} required />
+
+        <label>Image Project:</label>
+        <input name="image_project" value={form.image_project} onChange={handleChange} required />
+
+        <label>Image Family:</label>
+        <input name="image_family" value={form.image_family} onChange={handleChange} required />
+
+        <label>Disk Size (GB):</label>
+        <input type="number" name="disk_size_gb" value={form.disk_size_gb} onChange={handleChange} min={10} />
+
+        <button type="submit" disabled={loading} className="btn-primary">
+          {loading ? "Creating..." : "Create VM"}
+        </button>
+      </form>
+
+      <button
+        type="button"
+        onClick={fetchInstances}
+        disabled={loadingInstances}
+        className="btn-primary full-width"
+      >
+        {loadingInstances ? "Fetching Instances..." : "List Instances"}
+      </button>
+
+      {instances.length > 0 && (
+        <div className="instances-container">
+          <h2>Instances</h2>
+          {instances.map((inst) => (
+            <div key={inst.name} className="instance-card">
+              <div>
+                <strong>{inst.name}</strong> <br />
+                Zone: {inst.zone} <br />
+                Machine: {inst.machine_type} <br />
+                Status: {inst.status}
+              </div>
+              <button
+                className="delete-btn"
+                onClick={() => handleDelete(inst.name, inst.zone)}
+                disabled={loading}
               >
-                <option value="">
-                  {loadingProjects ? "Loading projects..." : "Select project"}
-                </option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Zone:
-              <select
-                name="instance_zone"
-                value={form.instance_zone}
-                onChange={handleChange}
-                disabled={!form.project_id || loadingZones}
-                required
-              >
-                <option value="">
-                  {loadingZones ? "Loading zones..." : "Select zone"}
-                </option>
-                {zones.map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Machine Type:
-              <select
-                name="machine_type"
-                value={form.machine_type}
-                onChange={handleChange}
-                disabled={!form.project_id || loadingMachineTypes}
-                required
-              >
-                <option value="">
-                  {loadingMachineTypes
-                    ? "Loading machine types..."
-                    : "Select machine type"}
-                </option>
-                {machineTypes.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Disk Type:
-              <select
-                name="disk_type"
-                value={form.disk_type}
-                onChange={handleChange}
-                disabled={
-                  !form.project_id ||
-                  !form.instance_zone ||
-                  loadingDiskTypes
-                }
-                required
-              >
-                <option value="">
-                  {loadingDiskTypes
-                    ? "Loading disk types..."
-                    : "Select disk type"}
-                </option>
-                {diskTypes.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="image-info">
-              <p>
-                For valid <strong>image project</strong> and{" "}
-                <strong>image family</strong> values, see the Google Cloud{" "}
-                <a
-                  href="https://docs.cloud.google.com/compute/docs/images/os-details"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Operating system details
-                </a>{" "}
-                page.
-              </p>
+                Delete
+              </button>
             </div>
-
-            <label>
-              Image Project:
-              <input
-                name="image_project"
-                value={form.image_project}
-                onChange={handleChange}
-                required
-              />
-            </label>
-
-            <label>
-              Image Family:
-              <input
-                name="image_family"
-                value={form.image_family}
-                onChange={handleChange}
-                required
-              />
-            </label>
-
-            <label>
-              Instance Name:
-              <input
-                name="instance_name"
-                value={form.instance_name}
-                onChange={handleChange}
-                required
-              />
-            </label>
-
-            <label>
-              Disk Size (GB):
-              <input
-                name="disk_size_gb"
-                type="number"
-                min={10}
-                value={form.disk_size_gb}
-                onChange={handleChange}
-              />
-            </label>
-
-            <button type="submit" className="create-btn">
-              Create Instance
-            </button>
-          </form>
-
-          {message && <p className="message">{message}</p>}
+          ))}
         </div>
       )}
+
+      {message && <div className={message.includes("✅") ? "message success" : "message error"}>{message}</div>}
     </div>
   );
 };

@@ -28,6 +28,6 @@ async def sample_delete(instance_name: str, zone_name: str, project_name: str, r
         response = client.delete(request=request)
 
         # Handle the response
-        return f"we have deleted the {response}"
+        return f"{response}"
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

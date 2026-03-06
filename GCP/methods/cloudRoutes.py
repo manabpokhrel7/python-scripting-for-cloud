@@ -15,41 +15,51 @@ from logger import logger
 from starlette.requests import Request
 from database.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
-from my_pydantic_class import getProject, getImage, getZone, deleteInstance, createInstance
+from my_pydantic_class import (getProject, getImage, getZone, deleteInstance, createInstance, projectResponse,
+                               zoneResponse, imageResponse, diskResponse, machineResponse, instanceResponse,
+                               deleteResponse)
 
 
 
-router = APIRouter(prefix="/cloud", tags=["Cloud"])
+router = APIRouter( tags=["Cloud"])
 
-@router.post("/get_projects")
+@router.post("/get_projects", response_model=projectResponse)
 async def get_projects(request: Request, db: AsyncSession = Depends(get_db)):
-    return await search_all_accessible_projects(request, db)
+    projectList = await search_all_accessible_projects(request, db)
+    return projectResponse(project_name=projectList)
 
 
-@router.post("/get_zones")
+@router.post("/get_zones", response_model=zoneResponse)
 async def get_zones(payload: getProject, request: Request, db: AsyncSession = Depends(get_db)):
     try:
-        return await zone_list(payload.project_id, request, db)
-    except:
-        raise HTTPException(status_code=404, detail="Zone not found")
+        result= await zone_list(payload.project_id, request, db)
+        return zoneResponse(zone_name=result)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/get_Images")
+@router.post("/get_Images", response_model=imageResponse)
 async def get_images(payload: getImage, request: Request, db: AsyncSession = Depends(get_db)):
     try:
-        return await list_images(payload.image_project_id, payload.family_id, request, db)
-    except:
-        raise HTTPException(status_code=404, detail="Image not found")
+        result= await list_images(payload.image_project_id, payload.family_id, request, db)
+        return imageResponse(image_name=result)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/disk_types")
+@router.post("/disk_types", response_model=diskResponse)
 async def disk_types(payload: getZone, request: Request, db: AsyncSession = Depends(get_db)):
     try:
-        return await disk_list(payload.zone, payload.project_id, request, db)
-    except:
-        return f"there is no disk types available in this {zone}"
+        result= await disk_list(payload.zone, payload.project_id, request, db)
+        return diskResponse(disk_name=result)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/machine_type")
+@router.post("/machine_type", response_model=machineResponse)
 async def machine_type(payload: getProject, request: Request, db: AsyncSession = Depends(get_db)):
-    return await machine_list(payload.project_id, request, db)
+    try:
+        result= await machine_list(payload.project_id, request, db)
+        return machineResponse(machine_name=result)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 @router.post("/create_machine")
 async def create_machine(payload: createInstance, request: Request, db: AsyncSession = Depends(get_db)):
@@ -66,17 +76,20 @@ async def create_machine(payload: createInstance, request: Request, db: AsyncSes
         logger.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/list_instance")
+@router.post("/list_instance", response_model=instanceResponse)
 async def list_instance(payload: getProject, request: Request, db: AsyncSession = Depends(get_db)):
     try:
-        return await sample_aggregated_list(payload.project_id, request, db)
+        result= await sample_aggregated_list(payload.project_id, request, db)
+        return instanceResponse(instance_name=result)
     except Exception as e:
         logger.exception(f"ERROR: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/delete_instance")
+@router.post("/delete_instance", response_model=deleteResponse)
 async def delete_instance(payload: deleteInstance,  request: Request, db: AsyncSession = Depends(get_db)):
     try:
-        return await sample_delete(payload.instance_name , payload.zone, payload.project_id, request, db)
+        result= await sample_delete(payload.instance_name , payload.zone, payload.project_id, request, db)
+        return deleteResponse(delete_details=result)
     except Exception as e:
         logger.error(f"ERROR: {e}")
         raise HTTPException(status_code=500, detail=str(e))
