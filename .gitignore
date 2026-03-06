@@ -21,3 +21,8 @@ my-app/sketch
 
 #Python
 GCP/.env
+
+#Terraform
+TerraformCloudRun/.terraform
+TerraformCloudRun/.terraform.lock.hcl
+TerraformCloudRun/key.json
