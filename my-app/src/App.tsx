@@ -182,14 +182,13 @@ const handleLogout = () => {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
 
-      const instancesArr: Instance[] = Object.entries(data.instance_name || {}).map(
-        ([name, zoneValue]: [string, string]) => ({
-          name,
-          zone: zoneValue.replace("zones/", ""),
-          machine_type: "",
-          status: "Unknown",
-        })
-      );
+      const instancesArr: Instance[] = (Object.entries(data.instance_name || {}) as [string, string][])
+  .map(([name, zoneValue]) => ({
+    name,
+    zone: zoneValue.replace("zones/", ""),
+    machine_type: "",
+    status: "Unknown",
+  }));
 
       setInstances(instancesArr);
       setMessage(`✅ Instances fetched successfully`);
