@@ -8,14 +8,18 @@ import os
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
-    #Database values and settings
-    DB_HOST: str = Field(default="localhost")
-    DB_USER: str = Field(default="manab")
-    DB_PORT: int = Field(default=5432)
-    DB_PASS: str = Field(default="strongpass")
-    DB_NAME: str = Field(default="mydb")
+    #Database values and settings for local
+    # DB_HOST: str = Field(default="localhost")
+    # DB_USER: str = Field(default="manab")
+    # DB_PORT: int = Field(default=5432)
+    # DB_PASS: str = Field(default="strongpass")
+    # DB_NAME: str = Field(default="mydb")
+    DB_HOST: str
+    DB_USER: str
+    DB_PASS: str
+    DB_NAME: str
+    DB_PORT: int = 5432  # optional default
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="")  # reads from environment
     # #Redis config
     # REDIS_HOST: str = Field(default="redis") #if you are running python from inside container and you wanna access it to outside container redis then you use the container name especially in docker compose because if you use localhost:6379 from isnide python container than localhpost there isnt redis
     # REDIS_PORT: int = Field(default=6379)
@@ -34,7 +38,8 @@ class Settings(BaseSettings):
     #loads the config from the "Config" nested class this is case sensitive it is the rule to label it
     #as "Config" from documentation: https://docs.pydantic.dev/latest/concepts/models/#model-config
     class Config: #Dont write () in this nested class you dont inherit anything here
-        env_file = ".env"
+        env_file = None
+        # env_file = ".env" ##Enable for local
         env_file_encoding = "utf-8" #even the arguement name should be the same "env_file" case sensitive
         extra = "ignore"
 
