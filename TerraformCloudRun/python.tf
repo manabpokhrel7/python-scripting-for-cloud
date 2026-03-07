@@ -17,6 +17,7 @@ resource "google_cloud_run_v2_service" "python" {
 
     scaling {
       max_instance_count = 10
+      min_instance_count = 1
     }
 
     containers {
@@ -41,23 +42,28 @@ resource "google_cloud_run_v2_service" "python" {
 
       # ===== DATABASE (Cloud SQL socket) =====
       env {
-        name  = "DB_NAME"
-        value = "mydb"
-      }
-
-      env {
         name  = "DB_USER"
-        value = "manab"
+        value = google_sql_user.db_user.name
       }
 
       env {
         name  = "DB_PASS"
-        value = "strongpass"
+        value = google_sql_user.db_user.password
+      }
+
+      env {
+        name  = "DB_NAME"
+        value = google_sql_database.mydb.name
       }
 
       env {
         name  = "CLOUD_SQL_INSTANCE"
         value = google_sql_database_instance.main.connection_name
+      }
+
+      env {
+        name  = "DB_PORT"
+        value = "5432"
       }
 
       # ===== RABBITMQ (CloudAMQP – managed) =====

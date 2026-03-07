@@ -6,7 +6,7 @@
 #Documentation : https://docs.pydantic.dev/latest/concepts/pydantic_settings/
 import os
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     #Database values and settings
     DB_HOST: str = Field(default="localhost")
@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     DB_PASS: str = Field(default="strongpass")
     DB_NAME: str = Field(default="mydb")
 
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="")  # reads from environment
     # #Redis config
     # REDIS_HOST: str = Field(default="redis") #if you are running python from inside container and you wanna access it to outside container redis then you use the container name especially in docker compose because if you use localhost:6379 from isnide python container than localhpost there isnt redis
     # REDIS_PORT: int = Field(default=6379)
