@@ -21,7 +21,7 @@ resource "google_cloud_run_v2_service" "python" {
 
     containers {
       name  = "python-container"
-      image = "us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/python"
+      image = "us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/python-cloud:v9"
 
       ports {
         container_port = 8000
@@ -91,14 +91,14 @@ resource "google_cloud_run_v2_service" "python" {
 }
 
 resource "google_cloud_run_v2_service" "react" {
-  name     = "react-frontend"
+  name     = "react-manab"
   location = "us-central1"
   ingress  = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
   template {
     containers {
       name  = "react-container"
-      image = "us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/react-app:latest"
+      image = "us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/react-manab:latest"
 
       ports {
         container_port = 80

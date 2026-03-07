@@ -1,5 +1,5 @@
-resource "google_compute_region_network_endpoint_group" "react_neg" {
-  name                  = "react-neg"
+resource "google_compute_region_network_endpoint_group" "react_manab_neg" {
+  name                  = "react-manab-neg"
   region                = "us-central1"
   network_endpoint_type = "SERVERLESS"
 
