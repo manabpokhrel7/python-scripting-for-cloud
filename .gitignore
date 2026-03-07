@@ -27,3 +27,5 @@ TerraformCloudRun/.terraform
 TerraformCloudRun/.terraform.lock.hcl
 TerraformCloudRun/key.json
 .aider*
+TerraformCloudRun/terraform.tfstate.backup
+TerraformCloudRun/terraform.tfstate
