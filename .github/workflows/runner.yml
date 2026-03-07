@@ -32,13 +32,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push
+      - name: Build and push Python Image
         uses: docker/build-push-action@v6
         with:
           context: ./GCP
           file: ./GCP/Dockerfile
           push: true
           tags: us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/python-cloud:v9
+
+      - name: Build and push React Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./my-app
+          file: ./my-app/Dockerfile
+          push: true
+          tags: us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/react-manab:v9
 
       - name: update the deployment
         run: gcloud run services update python-api --region us-central1 --image us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/python-cloud:v9
