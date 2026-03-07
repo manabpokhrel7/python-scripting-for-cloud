@@ -7,10 +7,10 @@ uvicorn
 google.api_core
 pydantic
 greenlet
-psycopg2
+psycopg2-binary
 python-jose
 Crypto
-pyjwt-2.11.0
+PyJWT==2.11.0
 pwdlib
 pwdlib[argon2]
 google-cloud-resource-manager
