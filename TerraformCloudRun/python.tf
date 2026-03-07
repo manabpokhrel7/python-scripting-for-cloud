@@ -62,6 +62,11 @@ resource "google_cloud_run_v2_service" "python" {
       }
 
       env {
+        name  = "DB_HOST"
+        value = "/cloudsql/${google_sql_database_instance.main.connection_name}"
+      }
+
+      env {
         name  = "DB_PORT"
         value = "5432"
       }
