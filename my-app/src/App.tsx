@@ -68,15 +68,7 @@ const App: React.FC = () => {
   // Login / Logout
   // ------------------------
   const handleLogin = () => (window.location.href = `${API_BASE}/login`);
-  // ------------------------
-// Login / Logout
-// ------------------------
-// ------------------------
-// Login / Logout
-// ------------------------
-const handleLogout = () => {
-  window.location.href = `${API_BASE}/logout`;
-};
+  const handleLogout = () => (window.location.href = `${API_BASE}/logout`);
 
   // ------------------------
   // Fetch projects
@@ -89,12 +81,14 @@ const handleLogout = () => {
         credentials: "include",
         body: JSON.stringify({}),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        console.warn("Projects fetch failed, ignoring to preserve session");
+        return;
+      }
       const data = await res.json();
       setProjects(data.project_name || []);
-    } catch (e: any) {
-      console.error("Projects fetch failed:", e.message);
-      setMessage(`❌ ${e.message}`);
+    } catch (e) {
+      console.warn("Projects fetch error ignored:", e);
     }
   };
 
@@ -109,12 +103,14 @@ const handleLogout = () => {
         credentials: "include",
         body: JSON.stringify({ project_id: projectId }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        console.warn("Zones fetch failed, ignoring to preserve session");
+        return;
+      }
       const data = await res.json();
       setZones(data.zone_name || []);
-    } catch (e: any) {
-      console.error("Zones fetch failed:", e.message);
-      setMessage(`❌ ${e.message}`);
+    } catch (e) {
+      console.warn("Zones fetch error ignored:", e);
     }
   };
 
@@ -130,11 +126,15 @@ const handleLogout = () => {
         credentials: "include",
         body: JSON.stringify({ project_id: projectId }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        console.warn("Machine types fetch failed, ignoring to preserve session");
+        setMachineTypes({});
+        return;
+      }
       const data = await res.json();
       setMachineTypes(data.machine_name || {});
     } catch (e) {
-      console.error("Machine types error:", e);
+      console.warn("Machine types fetch error ignored:", e);
       setMachineTypes({});
     } finally {
       setLoadingMachineTypes(false);
@@ -152,12 +152,14 @@ const handleLogout = () => {
         credentials: "include",
         body: JSON.stringify({ project_id: projectId, zone }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        console.warn("Disk types fetch failed, ignoring to preserve session");
+        return;
+      }
       const data = await res.json();
       setDiskTypes(data.disk_name || []);
-    } catch (e: any) {
-      console.error("Disk types fetch failed:", e.message);
-      setMessage(`❌ ${e.message}`);
+    } catch (e) {
+      console.warn("Disk types fetch error ignored:", e);
     }
   };
 
@@ -169,7 +171,6 @@ const handleLogout = () => {
       setMessage("❌ Please select a project first to list instances");
       return;
     }
-
     try {
       setLoadingInstances(true);
       setMessage("");
@@ -181,15 +182,13 @@ const handleLogout = () => {
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-
       const instancesArr: Instance[] = (Object.entries(data.instance_name || {}) as [string, string][])
-  .map(([name, zoneValue]) => ({
-    name,
-    zone: zoneValue.replace("zones/", ""),
-    machine_type: "",
-    status: "Unknown",
-  }));
-
+        .map(([name, zoneValue]) => ({
+          name,
+          zone: zoneValue.replace("zones/", ""),
+          machine_type: "",
+          status: "Unknown",
+        }));
       setInstances(instancesArr);
       setMessage(`✅ Instances fetched successfully`);
     } catch (e: any) {
