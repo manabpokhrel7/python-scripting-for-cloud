@@ -29,3 +29,5 @@ TerraformCloudRun/key.json
 .aider*
 TerraformCloudRun/terraform.tfstate.backup
 TerraformCloudRun/terraform.tfstate
+TerraformCloudRun/variables.tfvars
+
