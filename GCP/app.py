@@ -50,7 +50,7 @@ oauth.register(
 
 
 app.include_router(auth, prefix="/api")
-app.include_router(cloud, prefix="/cloud")
+app.include_router(cloud, prefix="/api/cloud")
 
 
 @app.get('/test')
