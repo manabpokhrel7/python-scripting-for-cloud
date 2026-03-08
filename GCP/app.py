@@ -102,7 +102,7 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db)):
     await store_token(usertoken, refreshtoken, sub, db)
     if usertoken:
         request.session['sub'] = sub #We temporarily store this in our session middleware and it sends us cookie to our browser
-    return RedirectResponse(url='http://localhost:5173')
+    return RedirectResponse(url='https://cloud.manabpokhrel.com.np')
 
 @app.get('/api/logout')
 async def logout(request: Request, db: AsyncSession = Depends(get_db)):
@@ -110,7 +110,7 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     await delete_token(sub, db)
     request.session.pop('sub', None) #This sends a HTTP requests back to the client browser to unset the cookie
     request.session.clear()
-    return RedirectResponse(url='http://localhost:5173')
+    return RedirectResponse(url='https://cloud.manabpokhrel.com.np')
 
 
 @app.get("/api/check_login")
