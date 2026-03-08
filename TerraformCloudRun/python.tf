@@ -127,6 +127,10 @@ resource "google_cloud_run_v2_service" "react" {
   ingress  = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
   deletion_protection = false
   template {
+    scaling {
+      max_instance_count = 10
+      min_instance_count = 0
+    }
     containers {
       name  = "react-container"
       image = "us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/react-manab:v9"

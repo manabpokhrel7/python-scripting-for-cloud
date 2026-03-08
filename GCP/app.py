@@ -81,13 +81,27 @@ async def homepage(request: Request):
         return HTMLResponse(html)
     return HTMLResponse('<a href="/login">login</a>')
 
+
+# Use below for localhost testing or else hardcode the HTTPS
+
+# @app.get('/api/login')
+# async def login(request: Request):
+#     redirect_uri = request.url_for('auth') #Generates absolute URL for redirect after login to avoid hardcode eg if in localhost localhost:8000/auth
+#     return await oauth.google.authorize_redirect(request, redirect_uri, access_type="offline", prompt="consent") #THis method Sends the redirect url and our session state which is random unique identifier
+# #the method is sent to our own developer account because the object oauth has the client information and it sends to our app server in google
+#
+# #In between this we get a google prompt to sign in to our google accnt and we do that and google sends a authorization code back to us which is utilized by the /auth fun below
+
+#Hardcoded https redirect below
 @app.get('/api/login')
 async def login(request: Request):
-    redirect_uri = request.url_for('auth') #Generates absolute URL for redirect after login to avoid hardcode eg if in localhost localhost:8000/auth
-    return await oauth.google.authorize_redirect(request, redirect_uri, access_type="offline", prompt="consent") #THis method Sends the redirect url and our session state which is random unique identifier
-#the method is sent to our own developer account because the object oauth has the client information and it sends to our app server in google
-
-#In between this we get a google prompt to sign in to our google accnt and we do that and google sends a authorization code back to us which is utilized by the /auth fun below
+    redirect_uri = "https://cloud.manabpokhrel.com.np/api/auth"  # force HTTPS
+    return await oauth.google.authorize_redirect(
+        request,
+        redirect_uri,
+        access_type="offline",
+        prompt="consent"
+    )
 
 @app.get('/api/auth')
 async def auth(request: Request, db: AsyncSession = Depends(get_db)):
