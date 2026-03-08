@@ -15,3 +15,24 @@ variable "secret_key" {
   description = "FastAPI session SECRET_KEY"
   sensitive   = true
 }
+
+variable "db_name" {
+  type = string
+  description = "name of database"
+}
+
+variable "db_host" {
+  type = string
+  description = "name of db host"
+}
+
+variable "db_user" {
+  type = string
+  description = "The name of db user"
+}
+
+variable "db_pass" {
+  sensitive = true
+  type = string
+  description = "Password of the database"
+}

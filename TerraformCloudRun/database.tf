@@ -11,10 +11,10 @@ resource "google_sql_database_instance" "main" {
 }
 resource "google_sql_user" "db_user" {
   instance = google_sql_database_instance.main.name
-  name     = "manab"
-  password = "strongpass"
+  name     = var.db_user
+  password = var.db_pass
 }
 resource "google_sql_database" "mydb" {
-  name     = "mydb"
+  name     = var.db_name
   instance = google_sql_database_instance.main.name
 }
