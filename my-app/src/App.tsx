@@ -280,7 +280,8 @@ const handleLogout = () => {
   return (
     <div className="container">
       <div className="header">
-        <h1>Cloud Manager</h1>
+        <h1>Cloud Manager By Manab Pokhrel</h1>
+        <a href="https://cloud.google.com/">Create a GCP account first – Click Here</a>
         <div>
           <span>User: {sub}</span>
           <button onClick={handleLogout} className="btn-logout">Logout</button>
