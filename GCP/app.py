@@ -41,6 +41,8 @@ oauth = OAuth(config)
 CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
 oauth.register(
     name='google', #This register name is used below in the login and auth
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
     server_metadata_url=CONF_URL,
     client_kwargs={
         'scope': 'openid email profile https://www.googleapis.com/auth/cloud-platform' #Ask this and where does this method initialize
