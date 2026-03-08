@@ -68,7 +68,7 @@ resource "google_cloud_run_v2_service" "python" {
 
       env {
         name  = "SECRET_KEY"
-        value = "super-secret-key"
+        value = var.secret_key
       }
 
       env {
