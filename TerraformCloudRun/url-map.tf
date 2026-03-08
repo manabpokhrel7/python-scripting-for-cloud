@@ -13,9 +13,21 @@ resource "google_compute_url_map" "main" {
     default_service = google_compute_backend_service.react_manab.id
 
     path_rule {
-      paths   = ["/cloud/*"]
+      paths   = ["/api/*"]
       service = google_compute_backend_service.python_backend.id
     }
+#     path_rule {
+#       paths   = ["/check_login/*"]
+#       service = google_compute_backend_service.python_backend.id
+#     }
+#     path_rule {
+#       paths   = ["/login/*"]
+#       service = google_compute_backend_service.python_backend.id
+#     }
+#     path_rule {
+#       paths   = ["/logout/*"]
+#       service = google_compute_backend_service.python_backend.id
+#     }
   }
 }
 
