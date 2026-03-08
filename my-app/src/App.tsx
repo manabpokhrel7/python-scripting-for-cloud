@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import './App.css';
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "cloud.manabpokhrel.com.np";
 
 interface FormData {
   project_id: string;

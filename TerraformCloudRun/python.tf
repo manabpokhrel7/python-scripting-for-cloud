@@ -110,11 +110,11 @@ resource "google_cloud_run_v2_service" "react" {
   name     = "react-manab"
   location = "us-central1"
   ingress  = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
-
+  deletion_protection = false
   template {
     containers {
       name  = "react-container"
-      image = "us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/react-manab:latest"
+      image = "us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/react-manab:v9"
 
       ports {
         container_port = 80
