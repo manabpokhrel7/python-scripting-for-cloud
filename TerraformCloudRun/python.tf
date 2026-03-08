@@ -76,6 +76,21 @@ resource "google_cloud_run_v2_service" "python" {
         value = google_sql_database_instance.main.connection_name
       }
 
+      env {
+        name  = "GOOGLE_CLIENT_ID"
+        value = var.google_client_id
+        }
+
+      env {
+        name  = "GOOGLE_CLIENT_SECRET"
+        value = var.google_client_secret
+      }
+
+      env {
+        name  = "SECRET_KEY"
+        value = var.secret_key
+      }
+
       # ===== RABBITMQ (CloudAMQP – managed) =====
 #       env {
 #         name  = "RABBITMQ_HOST"
