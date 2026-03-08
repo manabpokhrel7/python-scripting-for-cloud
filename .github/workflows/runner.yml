@@ -50,11 +50,11 @@ jobs:
           push: true
           tags: us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/react-manab:v9
 
-#      - name: update the deployment
-#        run: gcloud run services update python-api --region us-central1 --image us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/python-cloud:v9
-#
-#      - name: update the deployment
-#        run: gcloud run services update react-manab --region us-central1 --image us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/react-manab:v9
-#
-#
-#
+      - name: update the deployment
+        run: gcloud run services update python-api --region us-central1 --image us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/python-cloud:v9
+
+      - name: update the deployment
+        run: gcloud run services update react-manab --region us-central1 --image us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/react-manab:v9
+
+
+
