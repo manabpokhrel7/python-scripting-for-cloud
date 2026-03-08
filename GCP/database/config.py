@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     DB_PASS: str
     DB_NAME: str
     DB_PORT: int = 5432  # optional default
-
+    CLOUD_SQL_INSTANCE: str
     # #Redis config
     # REDIS_HOST: str = Field(default="redis") #if you are running python from inside container and you wanna access it to outside container redis then you use the container name especially in docker compose because if you use localhost:6379 from isnide python container than localhpost there isnt redis
     # REDIS_PORT: int = Field(default=6379)
