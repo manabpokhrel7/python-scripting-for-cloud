@@ -21,10 +21,6 @@ variable "db_name" {
   description = "name of database"
 }
 
-variable "db_host" {
-  type = string
-  description = "name of db host"
-}
 
 variable "db_user" {
   type = string
