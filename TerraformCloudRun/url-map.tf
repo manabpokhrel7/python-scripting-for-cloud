@@ -13,7 +13,9 @@ resource "google_compute_url_map" "main" {
     default_service = google_compute_backend_service.react_manab.id
 
     path_rule {
-      paths   = ["/api/*"]
+      paths   = ["/api/*",
+                 "/cloud/*"
+      ]
       service = google_compute_backend_service.python_backend.id
     }
 #     path_rule {

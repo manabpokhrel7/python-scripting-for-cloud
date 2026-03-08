@@ -79,7 +79,7 @@ async def homepage(request: Request):
         return HTMLResponse(html)
     return HTMLResponse('<a href="/login">login</a>')
 
-@app.get('/login')
+@app.get('/api/login')
 async def login(request: Request):
     redirect_uri = request.url_for('auth') #Generates absolute URL for redirect after login to avoid hardcode eg if in localhost localhost:8000/auth
     return await oauth.google.authorize_redirect(request, redirect_uri, access_type="offline", prompt="consent") #THis method Sends the redirect url and our session state which is random unique identifier
@@ -87,7 +87,7 @@ async def login(request: Request):
 
 #In between this we get a google prompt to sign in to our google accnt and we do that and google sends a authorization code back to us which is utilized by the /auth fun below
 
-@app.get('/auth')
+@app.get('/api/auth')
 async def auth(request: Request, db: AsyncSession = Depends(get_db)):
     try: #The back channel our server to google server conn browser dont see our secret
         token = await oauth.google.authorize_access_token(request) #This method sends the client secret Plus the authorization code recieved after we pass the google prompt and we recieve the token dict
@@ -102,7 +102,7 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db)):
         request.session['sub'] = sub #We temporarily store this in our session middleware and it sends us cookie to our browser
     return RedirectResponse(url='http://localhost:5173')
 
-@app.get('/logout')
+@app.get('/api/logout')
 async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     sub = request.session.get('sub')
     await delete_token(sub, db)
@@ -111,7 +111,7 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     return RedirectResponse(url='http://localhost:5173')
 
 
-@app.get("/check_login")
+@app.get("/api/check_login")
 async def check_login(request: Request):
     sub = request.session.get("sub")
     if sub:
