@@ -22,7 +22,7 @@ resource "google_cloud_run_v2_service" "python" {
 
     containers {
       name  = "python-container"
-      image = "us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/python-cloud:v9"
+      image = "us-central1-docker.pkg.dev/my-personal-terraform/python-repository/python-cloud:v9"
 
       ports {
         container_port = 8000
@@ -133,7 +133,7 @@ resource "google_cloud_run_v2_service" "react" {
     }
     containers {
       name  = "react-container"
-      image = "us-central1-docker.pkg.dev/thermal-camera-485502-u2/python-repository/react-manab:v9"
+      image = "us-central1-docker.pkg.dev/my-personal-terraform/python-repository/react-manab:v9"
 
       ports {
         container_port = 80

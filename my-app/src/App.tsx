@@ -2,6 +2,21 @@ import React, { useEffect, useState } from "react";
 import './App.css';
 
 const API_BASE = "https://cloud.manabpokhrel.com.np/api";
+// const API_BASE = "http://localhost:8000/api";
+
+const IMAGE_PROJECTS = [
+  "debian-cloud",
+  "ubuntu-os-cloud",
+  "rocky-linux-cloud",
+  "rhel-cloud",
+  "suse-cloud",
+  "windows-cloud",
+  "cos-cloud",
+  "fedora-coreos-cloud",
+  "opensuse-cloud",
+  "oracle-linux-cloud",
+  "centos-cloud"
+];
 
 interface FormData {
   project_id: string;
@@ -46,9 +61,6 @@ const App: React.FC = () => {
   const [loadingInstances, setLoadingInstances] = useState(false);
   const [loadingMachineTypes, setLoadingMachineTypes] = useState(false);
 
-  // ------------------------
-  // Check login
-  // ------------------------
   useEffect(() => {
     const checkLogin = async () => {
       try {
@@ -64,15 +76,9 @@ const App: React.FC = () => {
     checkLogin();
   }, []);
 
-  // ------------------------
-  // Login / Logout
-  // ------------------------
   const handleLogin = () => (window.location.href = `${API_BASE}/login`);
   const handleLogout = () => (window.location.href = `${API_BASE}/logout`);
 
-  // ------------------------
-  // Fetch projects
-  // ------------------------
   const fetchProjects = async () => {
     try {
       const res = await fetch(`${API_BASE}/cloud/get_projects`, {
@@ -81,10 +87,7 @@ const App: React.FC = () => {
         credentials: "include",
         body: JSON.stringify({}),
       });
-      if (!res.ok) {
-        console.warn("Projects fetch failed, ignoring to preserve session");
-        return;
-      }
+      if (!res.ok) return;
       const data = await res.json();
       setProjects(data.project_name || []);
     } catch (e) {
@@ -92,9 +95,6 @@ const App: React.FC = () => {
     }
   };
 
-  // ------------------------
-  // Fetch zones
-  // ------------------------
   const fetchZones = async (projectId: string) => {
     try {
       const res = await fetch(`${API_BASE}/cloud/get_zones`, {
@@ -103,10 +103,7 @@ const App: React.FC = () => {
         credentials: "include",
         body: JSON.stringify({ project_id: projectId }),
       });
-      if (!res.ok) {
-        console.warn("Zones fetch failed, ignoring to preserve session");
-        return;
-      }
+      if (!res.ok) return;
       const data = await res.json();
       setZones(data.zone_name || []);
     } catch (e) {
@@ -114,9 +111,6 @@ const App: React.FC = () => {
     }
   };
 
-  // ------------------------
-  // Fetch machine types
-  // ------------------------
   const fetchMachineTypes = async (projectId: string) => {
     setLoadingMachineTypes(true);
     try {
@@ -127,7 +121,6 @@ const App: React.FC = () => {
         body: JSON.stringify({ project_id: projectId }),
       });
       if (!res.ok) {
-        console.warn("Machine types fetch failed, ignoring to preserve session");
         setMachineTypes({});
         return;
       }
@@ -141,9 +134,6 @@ const App: React.FC = () => {
     }
   };
 
-  // ------------------------
-  // Fetch disk types
-  // ------------------------
   const fetchDiskTypes = async (projectId: string, zone: string) => {
     try {
       const res = await fetch(`${API_BASE}/cloud/disk_types`, {
@@ -152,10 +142,7 @@ const App: React.FC = () => {
         credentials: "include",
         body: JSON.stringify({ project_id: projectId, zone }),
       });
-      if (!res.ok) {
-        console.warn("Disk types fetch failed, ignoring to preserve session");
-        return;
-      }
+      if (!res.ok) return;
       const data = await res.json();
       setDiskTypes(data.disk_name || []);
     } catch (e) {
@@ -163,9 +150,6 @@ const App: React.FC = () => {
     }
   };
 
-  // ------------------------
-  // Fetch instances
-  // ------------------------
   const fetchInstances = async () => {
     if (!form.project_id) {
       setMessage("❌ Please select a project first to list instances");
@@ -198,9 +182,6 @@ const App: React.FC = () => {
     }
   };
 
-  // ------------------------
-  // Delete instance
-  // ------------------------
   const handleDelete = async (instanceName: string, zone: string) => {
     try {
       setLoading(true);
@@ -222,9 +203,6 @@ const App: React.FC = () => {
     }
   };
 
-  // ------------------------
-  // Form handlers
-  // ------------------------
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: name === "disk_size_gb" ? Number(value) : value }));
@@ -263,9 +241,6 @@ const App: React.FC = () => {
     }
   };
 
-  // ------------------------
-  // Render
-  // ------------------------
   if (!loggedIn) {
     return (
       <div className="centered">
@@ -303,11 +278,20 @@ const App: React.FC = () => {
         </select>
 
         <label>Machine Type:</label>
-        <select name="machine_type" value={form.machine_type} onChange={handleChange} required disabled={!form.project_id}>
-          <option value="">Select machine</option>
-          {Object.keys(machineTypes).map((m) => <option key={m} value={m}>{m}</option>)}
+        <select
+          name="machine_type"
+          value={form.machine_type}
+          onChange={handleChange}
+          required
+          disabled={!form.project_id || loadingMachineTypes}
+        >
+          <option value="">
+            {loadingMachineTypes ? "Loading machine types..." : "Select machine"}
+          </option>
+          {Object.keys(machineTypes).map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
         </select>
-        {loadingMachineTypes && <span className="loading">Loading machines...</span>}
 
         <label>Disk Type:</label>
         <select name="disk_type" value={form.disk_type} onChange={handleChange} required disabled={!form.zone}>
@@ -319,7 +303,11 @@ const App: React.FC = () => {
         <input name="instance_name" value={form.instance_name} onChange={handleChange} required />
 
         <label>Image Project:</label>
-        <input name="image_project" value={form.image_project} onChange={handleChange} required />
+        <select name="image_project" value={form.image_project} onChange={handleChange} required>
+          {IMAGE_PROJECTS.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
 
         <label>Image Family:</label>
         <input name="image_family" value={form.image_family} onChange={handleChange} required />

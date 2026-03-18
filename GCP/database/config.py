@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     # DB_PORT: int = Field(default=5432)
     # DB_PASS: str = Field(default="strongpass")
     # DB_NAME: str = Field(default="mydb")
+
+    #Below is for CloudRun
     DB_HOST: str
     DB_USER: str
     DB_PASS: str
@@ -38,7 +40,7 @@ class Settings(BaseSettings):
     #loads the config from the "Config" nested class this is case sensitive it is the rule to label it
     #as "Config" from documentation: https://docs.pydantic.dev/latest/concepts/models/#model-config
     class Config: #Dont write () in this nested class you dont inherit anything here
-        env_file = None
+        env_file = None #Enable For cloud run
         # env_file = ".env" ##Enable for local
         env_file_encoding = "utf-8" #even the arguement name should be the same "env_file" case sensitive
         extra = "ignore"

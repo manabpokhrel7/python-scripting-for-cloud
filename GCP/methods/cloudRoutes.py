@@ -7,10 +7,11 @@ from methods.create_instance import get_image_from_family
 from methods.list_instances import sample_aggregated_list
 from methods.delete_instance import sample_delete
 from methods.zones import zone_list
-from methods.list_images import list_images
+from methods.list_images import list_images, list_image
 from methods.disk_type import disk_list
 from methods.machinetype import machine_list
 from methods.project import search_all_accessible_projects
+from methods.projectcreate import sample_create_project, sample_delete_project
 from logger import logger
 from starlette.requests import Request
 from database.database import get_db
@@ -25,8 +26,12 @@ router = APIRouter( tags=["Cloud"])
 
 @router.post("/get_projects", response_model=projectResponse)
 async def get_projects(request: Request, db: AsyncSession = Depends(get_db)):
-    projectList = await search_all_accessible_projects(request, db)
-    return projectResponse(project_name=projectList)
+    try:
+        projectList = await search_all_accessible_projects(request, db)
+        return projectResponse(project_name=projectList)
+    except Exception as e:
+        logger.exception(e)
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.post("/get_zones", response_model=zoneResponse)
@@ -93,3 +98,23 @@ async def delete_instance(payload: deleteInstance,  request: Request, db: AsyncS
     except Exception as e:
         logger.error(f"ERROR: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/get_all_images")
+async def list_images(project_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await list_image(project_id, request, db)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/project_create")
+async def create_project(project_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    try:
+        return await sample_create_project(project_id, request, db)
+    except Exception as e:
+        logger.exception(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/project_delete")
+async def delete_project(project_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    return await sample_delete_project(project_id, request, db)

@@ -4,8 +4,8 @@ from JWT.hash import verify_password, get_password_hash
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import ValidationError
-from fastapi import Depends
-from starlette.requests import Request
+from logger import logger
+from fastapi import HTTPException
 
 
 
@@ -74,16 +74,20 @@ async def delete_token(sub, db: AsyncSession):
         await db.commit()
 
 async def get_token(request, db: AsyncSession):
-    sub = request.session.get('sub')
-    token_value = await db.scalar(select(Cloud.access_token).where(Cloud.sub == sub))
-    refresh_value = await db.scalar(select(Cloud.refresh_token).where(Cloud.sub == sub))
-    if token_value is None:
-        print("Please log in first")
-    else:
-        dict = {}
-        dict["access_token"] = token_value
-        dict["refresh_token"] = refresh_value
-        return dict
+    try:
+        sub = request.session.get('sub')
+        token_value = await db.scalar(select(Cloud.access_token).where(Cloud.sub == sub))
+        refresh_value = await db.scalar(select(Cloud.refresh_token).where(Cloud.sub == sub))
+        if token_value is None:
+            print("Please log in first")
+        else:
+            dict = {}
+            dict["access_token"] = token_value
+            dict["refresh_token"] = refresh_value
+            return dict
+    except Exception as e:
+        logger.exception(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
