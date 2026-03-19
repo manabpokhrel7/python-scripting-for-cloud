@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 # )
 
 #FOr cloud SQL
-Cloud SQL socket path
+# Cloud SQL socket path
 engine = create_async_engine(
     f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASS}@/{settings.DB_NAME}?host=/cloudsql/{settings.CLOUD_SQL_INSTANCE}",
     echo=True

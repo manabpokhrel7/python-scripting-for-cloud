@@ -1,5 +1,5 @@
 provider "google" {
-  project     = "thermal-camera-485502-u2"
+  project     = "my-personal-terraform"
   region      = "us-central1"
   credentials = file("key.json")
 }
