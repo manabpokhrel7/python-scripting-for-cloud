@@ -117,4 +117,9 @@ async def create_project(project_id: str, request: Request, db: AsyncSession = D
 
 @router.post("/project_delete")
 async def delete_project(project_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    return await sample_delete_project(project_id, request, db)
+    try:
+        return await sample_delete_project(project_id, request, db)
+    except Exception as e:
+        logger.error(f"ERROR deleting project {project_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
