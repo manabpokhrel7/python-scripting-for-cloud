@@ -17,7 +17,7 @@ resource "google_cloud_run_v2_service" "python" {
 
     scaling {
       max_instance_count = 10
-      min_instance_count = 0
+      min_instance_count = 1
     }
 
     containers {
@@ -129,7 +129,7 @@ resource "google_cloud_run_v2_service" "react" {
   template {
     scaling {
       max_instance_count = 10
-      min_instance_count = 0
+      min_instance_count = 1
     }
     containers {
       name  = "react-container"

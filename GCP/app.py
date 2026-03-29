@@ -1,10 +1,10 @@
-from fastapi import FastAPI, APIRouter, Depends
+from fastapi import FastAPI, Depends
 from legacyAuth.auth import router as auth
 from methods.cloudRoutes import router as cloud
+from AI.aitest import router as ai
 from fastapi.middleware.cors import CORSMiddleware
 from database.database import engine, get_db
 from database.models import Base
-from dotenv import load_dotenv
 import json
 from fastapi import APIRouter
 from starlette.config import Config
@@ -25,7 +25,7 @@ router = APIRouter()
 secret_key = os.getenv("SECRET_KEY")
 #Middleware
 app.add_middleware(SessionMiddleware, secret_key=secret_key)
-origins = ["http://localhost:5174", "http://127.0.0.1:5174", "https://cloud.manabpokhrel.com.np"]
+origins = ["http://localhost:5173", "http://127.0.0.1:5174", "https://cloud.manabpokhrel.com.np"]
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"],)
 
 
@@ -53,6 +53,7 @@ oauth.register(
 
 app.include_router(auth, prefix="/api")
 app.include_router(cloud, prefix="/api/cloud")
+app.include_router(ai, prefix="ai")
 
 
 @app.get('/test')
@@ -84,24 +85,24 @@ async def homepage(request: Request):
 
 # Use below for localhost testing or else hardcode the HTTPS
 
-# @app.get('/api/login')
-# async def login(request: Request):
-#     redirect_uri = request.url_for('auth') #Generates absolute URL for redirect after login to avoid hardcode eg if in localhost localhost:8000/auth
-#     return await oauth.google.authorize_redirect(request, redirect_uri, access_type="offline", prompt="consent") #THis method Sends the redirect url and our session state which is random unique identifier
+@app.get('/api/login')
+async def login(request: Request):
+    redirect_uri = request.url_for('auth') #Generates absolute URL for redirect after login to avoid hardcode eg if in localhost localhost:8000/auth
+    return await oauth.google.authorize_redirect(request, redirect_uri, access_type="offline", prompt="consent") #THis method Sends the redirect url and our session state which is random unique identifier
 # #the method is sent to our own developer account because the object oauth has the client information and it sends to our app server in google
 #
 # #In between this we get a google prompt to sign in to our google accnt and we do that and google sends a authorization code back to us which is utilized by the /auth fun below
 
 #Hardcoded https redirect below
-@app.get('/api/login')
-async def login(request: Request):
-    redirect_uri = "https://cloud.manabpokhrel.com.np/api/auth"  # force HTTPS
-    return await oauth.google.authorize_redirect(
-        request,
-        redirect_uri,
-        access_type="offline",
-        prompt="consent"
-    )
+# @app.get('/api/login')
+# async def login(request: Request):
+#     redirect_uri = "https://cloud.manabpokhrel.com.np/api/auth"  # force HTTPS
+#     return await oauth.google.authorize_redirect(
+#         request,
+#         redirect_uri,
+#         access_type="offline",
+#         prompt="consent"
+#     )
 
 @app.get('/api/auth')
 async def auth(request: Request, db: AsyncSession = Depends(get_db)):
@@ -109,6 +110,7 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db)):
         token = await oauth.google.authorize_access_token(request) #This method sends the client secret Plus the authorization code recieved after we pass the google prompt and we recieve the token dict
     except OAuthError as error:
         return HTMLResponse(f'<h1>{error.error}</h1>')
+    print(token)
     usertoken = token.get('access_token') #From the token dict we use python get method to get the usertoken field from the dict
     userinfo = token.get('userinfo') #The userinfo dict
     refreshtoken = token.get('refresh_token')
@@ -116,7 +118,7 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db)):
     await store_token(usertoken, refreshtoken, sub, db)
     if usertoken:
         request.session['sub'] = sub #We temporarily store this in our session middleware and it sends us cookie to our browser
-    return RedirectResponse(url='https://cloud.manabpokhrel.com.np')
+    return RedirectResponse(url='http://localhost:5173/')
 
 @app.get('/api/logout')
 async def logout(request: Request, db: AsyncSession = Depends(get_db)):
@@ -124,7 +126,7 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     await delete_token(sub, db)
     request.session.pop('sub', None) #This sends a HTTP requests back to the client browser to unset the cookie
     request.session.clear()
-    return RedirectResponse(url='https://cloud.manabpokhrel.com.np')
+    return RedirectResponse(url='http://localhost:5173/')
 
 
 @app.get("/api/check_login")
