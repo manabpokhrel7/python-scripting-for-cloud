@@ -22,3 +22,4 @@ itsdangerous
 authlib
 httpx
 prometheus-client
+openai

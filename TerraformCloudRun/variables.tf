@@ -33,3 +33,8 @@ variable "db_pass" {
   description = "Password of the database"
 }
 
+variable "OPENAI_API_KEY" {
+  sensitive = true
+  type = string
+  description = "My open AI api key"
+}

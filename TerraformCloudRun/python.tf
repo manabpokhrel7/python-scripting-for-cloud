@@ -91,6 +91,11 @@ resource "google_cloud_run_v2_service" "python" {
         value = var.secret_key
       }
 
+      env {
+        name = "OPENAI_API_KEY"
+        value = var.OPENAI_API_KEY
+      }
+
       # ===== RABBITMQ (CloudAMQP – managed) =====
 #       env {
 #         name  = "RABBITMQ_HOST"
