@@ -23,3 +23,8 @@ authlib
 httpx
 prometheus-client
 openai
+chronological
+python-dotenv
+loguru
+asyncio
+redis

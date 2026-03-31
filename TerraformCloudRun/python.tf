@@ -96,26 +96,17 @@ resource "google_cloud_run_v2_service" "python" {
         value = var.OPENAI_API_KEY
       }
 
-      # ===== RABBITMQ (CloudAMQP – managed) =====
-#       env {
-#         name  = "RABBITMQ_HOST"
-#         value = "woodpecker.rmq.cloudamqp.com"
-#       }
+      # ===== Redis=====
+      env {
+        name  = "REDIS_HOST"
+        value = google_redis_instance.cache.host
+      }
+
+      env {
+        name  = "REDIS_PORT"
+        value = tostring(google_redis_instance.cache.port)
+      }
 #
-#       env {
-#         name  = "RABBITMQ_PORT"
-#         value = "5672"   # TLS port
-#       }
-#
-#       env {
-#         name  = "RABBITMQ_USER"
-#         value = "amluser"
-#       }
-#
-#       env {
-#         name  = "RABBITMQ_PASSWORD"
-#         value = "amlpassword"
-#       }
     }
   }
   lifecycle {

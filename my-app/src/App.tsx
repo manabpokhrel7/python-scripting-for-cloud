@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 
-const API_BASE = "https://cloud.manabpokhrel.com.np/api";
-// const API_BASE = "http://localhost:8000/api";
+// const API_BASE = "https://cloud.manabpokhrel.com.np/api";
+const API_BASE = "http://localhost:8000/api";
 
 const IMAGE_PROJECTS = [
   "debian-cloud",

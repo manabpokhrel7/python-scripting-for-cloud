@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from oauth import oauth
 import os
 from dotenv import load_dotenv
+from Redis.redis import r
 
 load_dotenv()
 app = FastAPI()
@@ -123,6 +124,7 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db)):
 @app.get('/api/logout')
 async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     sub = request.session.get('sub')
+    r.delete(request.session.get('sub'))
     await delete_token(sub, db)
     request.session.pop('sub', None) #This sends a HTTP requests back to the client browser to unset the cookie
     request.session.clear()

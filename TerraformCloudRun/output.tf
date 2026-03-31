@@ -17,3 +17,11 @@ output "python_cloud_run_service_url" {
 output "load_balancer_ip" {
   value = google_compute_global_forwarding_rule.http.ip_address
 }
+
+output "redis_host" {
+  value = google_redis_instance.cache.host
+}
+
+output "redis_port" {
+  value = google_redis_instance.cache.port
+}
