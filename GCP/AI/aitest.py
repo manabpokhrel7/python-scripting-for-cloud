@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from openai import AsyncOpenAI
 import os
-from Redis.redis import r
+from redis.redis import r
 from starlette.requests import Request
 from logger import logger
 
