@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from oauth import oauth
 import os
 from dotenv import load_dotenv
-from redis.redis import r
+from cache.redis import r
 
 load_dotenv()
 app = FastAPI()
