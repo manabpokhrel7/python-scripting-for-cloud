@@ -5,6 +5,13 @@ resource "google_cloud_run_v2_service" "python" {
   deletion_protection = false
 
   template {
+    vpc_access {
+      egress = "PRIVATE_RANGES_ONLY"
+      network_interfaces {
+        network    = "default"
+        subnetwork = "default"
+      }
+    }
 
     volumes {
       name = "cloudsql"
