@@ -25,3 +25,14 @@ output "redis_host" {
 output "redis_port" {
   value = google_redis_instance.cache.port
 }
+
+# output "first_vm_public_ip" {
+#   value = google_compute_instance.default["control1"].network_interface[0].access_config[0].nat_ip
+# }
+#
+# output "second_vm_public_ip" {
+#   value = google_compute_instance.default["control2"].network_interface[0].access_config[0].nat_ip
+# }
+output "vm_public_ip" {
+  value = google_compute_instance.default.network_interface[0].access_config[0].nat_ip
+}

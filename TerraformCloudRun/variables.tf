@@ -38,3 +38,7 @@ variable "OPENAI_API_KEY" {
   type = string
   description = "My open AI api key"
 }
+
+variable "ssh_public_key" {
+  type = string
+}

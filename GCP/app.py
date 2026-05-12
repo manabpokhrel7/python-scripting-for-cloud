@@ -18,6 +18,8 @@ from oauth import oauth
 import os
 from dotenv import load_dotenv
 from cache.redis import r
+from prometheus_fastapi_instrumentator import Instrumentator
+
 
 load_dotenv()
 app = FastAPI()
@@ -26,7 +28,7 @@ router = APIRouter()
 secret_key = os.getenv("SECRET_KEY")
 #Middleware
 app.add_middleware(SessionMiddleware, secret_key=secret_key)
-origins = ["http://localhost:5173", "http://127.0.0.1:5174", "https://cloud.manabpokhrel.com.np"]
+origins = ["http://localhost:5173", "http://127.0.0.1:5174", "https://cloud.manabpokhrel.com.np", "https://kubernetes.manabpokhrel.com.np"]
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"],)
 
 
@@ -55,6 +57,8 @@ oauth.register(
 app.include_router(auth, prefix="/api")
 app.include_router(cloud, prefix="/api/cloud")
 app.include_router(ai, prefix="/api/ai")
+
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 
 @app.get('/test')
@@ -97,7 +101,7 @@ async def homepage(request: Request):
 #Hardcoded https redirect below
 @app.get('/api/login')
 async def login(request: Request):
-    redirect_uri = "https://cloud.manabpokhrel.com.np/api/auth"  # force HTTPS
+    redirect_uri = "https://kubernetes.manabpokhrel.com.np/api/auth"  # force HTTPS
     return await oauth.google.authorize_redirect(
         request,
         redirect_uri,
@@ -119,7 +123,7 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db)):
     await store_token(usertoken, refreshtoken, sub, db)
     if usertoken:
         request.session['sub'] = sub #We temporarily store this in our session middleware and it sends us cookie to our browser
-    return RedirectResponse(url='https://cloud.manabpokhrel.com.np/')
+    return RedirectResponse(url='https://kubernetes.manabpokhrel.com.np')
 
 @app.get('/api/logout')
 async def logout(request: Request, db: AsyncSession = Depends(get_db)):
@@ -128,7 +132,7 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     await delete_token(sub, db)
     request.session.pop('sub', None) #This sends a HTTP requests back to the client browser to unset the cookie
     request.session.clear()
-    return RedirectResponse(url='https://cloud.manabpokhrel.com.np/')
+    return RedirectResponse(url='https://kubernetes.manabpokhrel.com.np')
 
 
 @app.get("/api/check_login")

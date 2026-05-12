@@ -1,0 +1,101 @@
+- name: configure elk stack on a server
+  become: true
+  hosts: all
+  tasks:
+    #Installing Elastisearch
+    - name: Update repositories cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Setting the registry
+      shell: wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | gpg --batch --yes --dearmor -o /usr/share/keyrings/elasticsearch-keyring.gpg
+
+    - name: install apt-transport-https
+      apt:
+        name: apt-transport-https
+        state: present
+
+    - name: Save the repository definition to /etc/apt/sources.list.d/elastic-9.x.list
+      shell: echo "deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/9.x/apt stable main" | tee /etc/apt/sources.list.d/elastic-9.x.list
+
+    - name: Update repositories cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: install elasticsearch
+      apt:
+        name: elasticsearch
+        state: present
+
+    - name: changing the settings
+      ansible.builtin.lineinfile:
+        path: /etc/elasticsearch/elasticsearch.yml
+        regexp: '^cluster.name:'
+        line: 'cluster.name: elasticsearch-demo'
+
+    - name: changing the settings
+      ansible.builtin.lineinfile:
+        path: /etc/elasticsearch/elasticsearch.yml
+        regexp: '^network.host:'
+        line: 'network.host: 0.0.0.0'
+
+    - name: changing the settings
+      ansible.builtin.lineinfile:
+        path: /etc/elasticsearch/elasticsearch.yml
+        regexp: '^transport.host:'
+        line: 'transport.host: 0.0.0.0'
+
+    - name: Make sure a service unit is running
+      ansible.builtin.systemd_service:
+        state: started
+        name: elasticsearch.service
+        enabled: true
+
+    - name: Reset ELK system password
+      command: /usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic --batch -a --silent
+      register: password
+
+    - name: Save the password
+      set_fact:
+        elastic_password: "{{ password.stdout }}"
+
+    - name: Check if ELK is running
+      command: curl --cacert /etc/elasticsearch/certs/http_ca.crt -u elastic:{{ elastic_password }} https://localhost:9200
+
+    ###Installing Kibana
+    - name: Save the Kibana repo
+      shell: echo "deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/9.x/apt stable main" | tee /etc/apt/sources.list.d/elastic-9.x.list
+
+    - name: Update repositories cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: install kibana
+      apt:
+        name: kibana
+        state: present
+
+    - name: Generate Elastisearch token
+      command: /usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana
+      register: token
+
+    - name: Save the token
+      set_fact:
+        elk_token: "{{ token.stdout }}"
+
+    - name: changing the settings
+      ansible.builtin.lineinfile:
+        path: /etc/kibana/kibana.yml
+        regexp: '^network.host:'
+        line: 'network.host: 0.0.0.0'
+
+    - name: Make sure a service unit is running
+      ansible.builtin.systemd_service:
+        state: started
+        name: kibana.service
+        enabled: true
+
+
+
+
+
