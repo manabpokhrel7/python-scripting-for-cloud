@@ -12,7 +12,7 @@ from starlette.requests import Request
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import HTMLResponse, RedirectResponse
 from authlib.integrations.starlette_client import OAuth, OAuthError
-from database.crud import store_token, delete_token, get_token
+from database.crud import store_token, delete_token, get_token, health_check
 from sqlalchemy.ext.asyncio import AsyncSession
 from oauth import oauth
 import os
@@ -60,13 +60,13 @@ app.include_router(ai, prefix="/api/ai")
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
+@app.get('/health')
+async def healthcheck(db: AsyncSession = Depends(get_db)):
+    return await health_check(db)
 
 @app.get('/test')
-async def test(request:Request, db: AsyncSession = Depends(get_db)):
-    try:
-        return await get_token(request, db)
-    except Exception as e:
-        raise HTTPException(e)
+async def test(request: Request, db: AsyncSession = Depends(get_db)):
+    return await get_token(request, db)
 
 @app.get("/me")
 async def get_current_user(request: Request):

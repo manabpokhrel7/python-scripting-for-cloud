@@ -90,6 +90,12 @@ async def get_token(request, db: AsyncSession):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def health_check(db: AsyncSession):
+    try:
+        await db.execute(text("SELECT 1"))
+        return {"status": "healthy"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
