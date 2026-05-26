@@ -22,9 +22,9 @@ jobs:
           service_account: ${{ vars.SERVICE_ACCOUNT }}@${{ vars.PROJECT_ID }}.iam.gserviceaccount.com
 
 
-      - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+#      - name: Configure Docker for Artifact Registry
+#        run: |
+#          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -39,7 +39,7 @@ jobs:
           context: ./GCP
           file: ./GCP/Dockerfile
           push: true
-          tags: us-central1-docker.pkg.dev/my-personal-terraform/python-repository/python-cloud:v9
+          tags: manabpokhrel7/python-cloud:latest
 
 #      - name: Build and push React Image
 #        uses: docker/build-push-action@v6
