@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from legacyAuth.auth import router as auth
 from methods.cloudRoutes import router as cloud
 from AI.aitest import router as ai
@@ -141,5 +141,14 @@ async def check_login(request: Request):
     if sub:
         return {"logged_in": True, "sub": sub}
     return {"logged_in": False}
+
+@app.get("/api/health")
+async def health_check(request: Request, db: AsyncSession = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "healthy"}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail="Database connection failed")
+
 
 
