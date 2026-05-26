@@ -60,7 +60,7 @@ app.include_router(ai, prefix="/api/ai")
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
-@app.get('/health')
+@app.get('/api/health')
 async def healthcheck(db: AsyncSession = Depends(get_db)):
     return await health_check(db)
 
