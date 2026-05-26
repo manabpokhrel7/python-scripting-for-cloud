@@ -63,7 +63,10 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 @app.get('/test')
 async def test(request:Request, db: AsyncSession = Depends(get_db)):
-    return await get_token(request, db)
+    try:
+        return await get_token(request, db)
+    except Exception as e:
+        raise HTTPException(e)
 
 @app.get("/me")
 async def get_current_user(request: Request):
@@ -142,11 +145,4 @@ async def check_login(request: Request):
         return {"logged_in": True, "sub": sub}
     return {"logged_in": False}
 
-@app.get("/api/health")
-async def health_check(request: Request, db: AsyncSession = Depends(get_db)):
-    try:
-        db.execute(text("SELECT 1"))
-        return {"status": "healthy"}
-    except Exception as e:
-        raise HTTPException(status_code=503, detail="Database connection failed")
 
