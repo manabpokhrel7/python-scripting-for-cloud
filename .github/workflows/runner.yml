@@ -45,7 +45,7 @@ jobs:
           context: ./GCP
           file: ./GCP/Dockerfile
           push: true
-          tags: manabpokhrel7/python-cloud:latest
+          tags: manabpokhrel7/python-cloud:${{ github.sha }}
 
 #      - name: Build and push React Image
 #        uses: docker/build-push-action@v6
