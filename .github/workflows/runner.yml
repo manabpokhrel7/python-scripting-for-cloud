@@ -52,7 +52,7 @@ jobs:
           git clone https://github.com/manabpokhrel7/Kubeadm-cilium-Terraform.git
           cd Kubeadm-cilium-Terraform
           git init
-          touch testfile
+          rm -rf testfile
           ls -ltra
           git config --global user.email "cicdbotapp@example.com"
           git config --global user.name "manab pokhrel cicd app bot"
