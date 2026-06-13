@@ -56,6 +56,7 @@ jobs:
           ls -ltra
           git config --global user.email "cicdbotapp@example.com"
           git config --global user.name "manab pokhrel cicd app bot"
+          git remote -v
           git add .
           git commit -m "Cicd change from application repo"
           git push origin main
