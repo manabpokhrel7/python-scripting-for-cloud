@@ -358,7 +358,7 @@ const App: React.FC = () => {
     <div className="page">
       <header className="header">
         <div>
-          <h1>Cloud Manager By Manab Pokhrel</h1>
+          <h1>Cloud Manager By Manab Pokhrel argocd change</h1>
           <p className="subtext">Google Cloud VM manager with AI assistant</p>
         </div>
 

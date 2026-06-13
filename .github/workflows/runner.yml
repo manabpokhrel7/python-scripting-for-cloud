@@ -47,12 +47,22 @@ jobs:
           push: true
           tags: manabpokhrel7/python-cloud:${{ github.sha }}
 
+      - name: Build and push React Image
+        uses: docker/build-push-action@v6
+        with:
+          no-cache: true
+          context: ./my-app
+          file: ./my-app/Dockerfile
+          push: true
+          tags: manabpokhrel7/reactjs:${{ github.sha }}
+
       - name: Push the image tag to my infra repo helm chart value
         run: | 
           git clone https://github.com/manabpokhrel7/Kubeadm-cilium-Terraform.git
           cd Kubeadm-cilium-Terraform
           git init
-          yq -i '.image.tag = "latest2check"' manifests/python/values.yaml
+          yq -i '.image.tag = "${{ github.sha }}"' manifests/python/values.yaml
+          yq -i '.image.tag = "${{ github.sha }}"' manifests/react/values.yaml
           ls -ltra
           git config --global user.email "cicdbotapp@example.com"
           git config --global user.name "manab pokhrel cicd app bot"
