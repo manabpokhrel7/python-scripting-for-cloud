@@ -358,8 +358,8 @@ const App: React.FC = () => {
     <div className="page">
       <header className="header">
         <div>
-          <h1>Cloud Manager By Manab Pokhrel argocd change</h1>
-          <p className="subtext">Google Cloud VM manager with AI assistant</p>
+          <h1>argocd change 1</h1>
+          <p className="subtext">argocd change 1</p>
         </div>
 
         <div className="header-right">
