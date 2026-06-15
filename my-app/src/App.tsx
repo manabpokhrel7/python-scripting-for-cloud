@@ -335,7 +335,7 @@ const App: React.FC = () => {
         <div className="login-card">
           <h1>Cloud Manager By Manab</h1>
           <p className="subtext">
-            Manage GCP VMs and use your built-in AI assistant.
+            Argocd 1
           </p>
           <a
             href="https://cloud.google.com/"
