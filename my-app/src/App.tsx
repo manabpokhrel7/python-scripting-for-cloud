@@ -335,7 +335,7 @@ const App: React.FC = () => {
         <div className="login-card">
           <h1>Cloud Manager By Manab</h1>
           <p className="subtext">
-            Argocd 2
+            Argocd 3
           </p>
           <a
             href="https://cloud.google.com/"
