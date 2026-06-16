@@ -41,7 +41,7 @@ jobs:
       - name: Build and push Python Image
         uses: docker/build-push-action@v6
         with:
-          no-cache: true
+#          no-cache: true
           context: ./GCP
           file: ./GCP/Dockerfile
           push: true
@@ -50,7 +50,7 @@ jobs:
       - name: Build and push React Image
         uses: docker/build-push-action@v6
         with:
-          no-cache: true
+#          no-cache: true
           context: ./my-app
           file: ./my-app/Dockerfile
           push: true
