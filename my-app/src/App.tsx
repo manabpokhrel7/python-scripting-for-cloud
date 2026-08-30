@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 
-const API_BASE = "/api"; //For Kubernetes
+// const API_BASE = "/api"; //For Kubernetes
 // const API_BASE = "https://cloud.manabpokhrel.com.np/api"; //For cloud Run
-// const API_BASE = "http://localhost:8000/api";
+const API_BASE = "http://localhost:8000/api";
 
 const IMAGE_PROJECTS = [
   "debian-cloud",

@@ -22,9 +22,9 @@ jobs:
 #          service_account: ${{ vars.SERVICE_ACCOUNT }}@${{ vars.PROJECT_ID }}.iam.gserviceaccount.com
 
 
-      - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+#      - name: Configure Docker for Artifact Registry
+#        run: |
+#          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
