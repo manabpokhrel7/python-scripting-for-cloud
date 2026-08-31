@@ -135,7 +135,7 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     await delete_token(sub, db)
     request.session.pop('sub', None) #This sends a HTTP requests back to the client browser to unset the cookie
     request.session.clear()
-    return RedirectResponse(url='https://kubernetes.manabpokhrel.com.np')
+    return RedirectResponse(url='http://localhost:5173/')
 
 
 @app.get("/api/check_login")

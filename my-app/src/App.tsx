@@ -35,6 +35,7 @@ interface Instance {
   zone: string;
   machine_type: string;
   status: string;
+  public_ip: string;
 }
 
 const App: React.FC = () => {
@@ -195,14 +196,44 @@ const App: React.FC = () => {
 
       const data = await res.json();
 
-      const instancesArr: Instance[] = (
-        Object.entries(data.instance_name || {}) as [string, string][]
-      ).map(([name, zoneValue]) => ({
-        name,
-        zone: zoneValue.replace("zones/", ""),
-        machine_type: "",
-        status: "Unknown",
-      }));
+      const instancesArr: Instance[] = Object.entries(
+        data.instance_name || {}
+      ).map(([name, value]: [string, any]) => {
+        /*
+          Supports your current backend:
+          {
+            "vm-name": "zones/us-central1-a"
+          }
+
+          And also supports a future backend response like:
+          {
+            "vm-name": {
+              "zone": "zones/us-central1-a",
+              "public_ip": "34.123.45.67",
+              "machine_type": "e2-medium",
+              "status": "RUNNING"
+            }
+          }
+        */
+
+        if (typeof value === "string") {
+          return {
+            name,
+            zone: value.replace("zones/", ""),
+            machine_type: "",
+            status: "Unknown",
+            public_ip: "",
+          };
+        }
+
+        return {
+          name,
+          zone: (value.zone || "").replace("zones/", ""),
+          machine_type: value.machine_type || "",
+          status: value.status || "Unknown",
+          public_ip: value.public_ip || "",
+        };
+      });
 
       setInstances(instancesArr);
       setMessage("Instances fetched successfully");
@@ -291,8 +322,45 @@ const App: React.FC = () => {
 
       if (!res.ok) throw new Error(await res.text());
 
-      setMessage(`Created instance "${form.instance_name}"`);
-      setForm((prev) => ({ ...prev, instance_name: "" }));
+      const data = await res.json();
+
+      const vmName = data.vm_name;
+      const privateKey = data.private_key;
+      const publicIp = data.public_ip;
+
+      if (!privateKey) {
+        throw new Error("VM created but private SSH key was not returned");
+      }
+
+      const blob = new Blob([privateKey], {
+        type: "application/x-pem-file",
+      });
+
+      const downloadUrl = URL.createObjectURL(blob);
+
+      const downloadLink = document.createElement("a");
+
+      downloadLink.href = downloadUrl;
+      downloadLink.download = `${vmName}_private_key.pem`;
+
+      document.body.appendChild(downloadLink);
+
+      downloadLink.click();
+
+      document.body.removeChild(downloadLink);
+
+      URL.revokeObjectURL(downloadUrl);
+
+      setMessage(
+        `Created instance "${vmName}". Public IP: ${
+          publicIp || ""
+        }. SSH private key downloaded successfully.`
+      );
+
+      setForm((prev) => ({
+        ...prev,
+        instance_name: "",
+      }));
     } catch (e: any) {
       setMessage(e.message || "Failed to create instance");
     } finally {
@@ -510,6 +578,8 @@ const App: React.FC = () => {
                     Machine: {inst.machine_type || "N/A"}
                     <br />
                     Status: {inst.status}
+                    <br />
+                    External IP: {inst.public_ip || ""}
                   </div>
 
                   <button
@@ -525,7 +595,14 @@ const App: React.FC = () => {
           )}
 
           {message && (
-            <div className={`message ${message.toLowerCase().includes("fail") || message.toLowerCase().includes("error") ? "error" : "success"}`}>
+            <div
+              className={`message ${
+                message.toLowerCase().includes("fail") ||
+                message.toLowerCase().includes("error")
+                  ? "error"
+                  : "success"
+              }`}
+            >
               {message}
             </div>
           )}

@@ -34,8 +34,8 @@ from database.crud import get_token
 from config.config import Config
 from starlette.requests import Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from google.cloud import resourcemanager_v3
-#
+from ssh_python.ssh_key import ssh_keys
+
 async def get_image_from_family(request: Request, db: AsyncSession, project: str, family: str) -> compute_v1.Image:
     """
     Retrieve the newest image that is part of a given family in a project.
@@ -156,7 +156,7 @@ async def create_instance(
     network_link: str = "global/networks/default",
     subnetwork_link: str = None,
     internal_ip: str = None,
-    external_access: bool = False,
+    external_access: bool = True,
     external_ipv4: str = None,
     accelerators: list[compute_v1.AcceleratorConfig] = None,
     preemptible: bool = False,
@@ -164,7 +164,7 @@ async def create_instance(
     instance_termination_action: str = "STOP",
     custom_hostname: str = None,
     delete_protection: bool = False,
-) -> compute_v1.Instance:
+) -> tuple[compute_v1.Instance, str, str]:
     """
     Send an instance creation request to the Compute Engine API and wait for it to complete.
 
@@ -203,7 +203,7 @@ async def create_instance(
         delete_protection: boolean value indicating if the new virtual machine should be
             protected against deletion or not.
     Returns:
-        Instance object.
+        Instance object plus the private_key
     """
     # Get tokens from database
     try:
@@ -232,11 +232,21 @@ async def create_instance(
                 access.nat_i_p = external_ipv4
             network_interface.access_configs = [access]
 
+        private_key, public_key = await ssh_keys()
+
+        ssh_item = compute_v1.Items(
+            key="ssh-keys",
+            value=f"python:{public_key.decode('utf-8')}"
+        )
+        ssh_meta = compute_v1.Metadata(items=[ssh_item])
+
         # Collect information into the Instance object.
         instance = compute_v1.Instance()
         instance.network_interfaces = [network_interface]
         instance.name = instance_name
         instance.disks = disks
+        instance.metadata = ssh_meta
+
         if re.match(r"^zones/[a-z\d\-]+/machineTypes/[a-z\d\-]+$", machine_type):
             instance.machine_type = machine_type
         else:
@@ -272,6 +282,7 @@ async def create_instance(
             # Set the delete protection bit
             instance.deletion_protection = True
 
+
         # Prepare the request to insert an instance.
         request = compute_v1.InsertInstanceRequest()
         request.zone = zone
@@ -286,7 +297,15 @@ async def create_instance(
         await wait_for_extended_operation(operation, "instance creation")
 
         print(f"Instance {instance_name} created.")
-        return instance_client.get(project=project_id, zone=zone, instance=instance_name)
+        created_vm = instance_client.get(
+            project=project_id,
+            zone=zone,
+            instance=instance_name
+        )
+
+        external_ip = created_vm.network_interfaces[0].access_configs[0].nat_i_p
+
+        return created_vm, private_key.decode("utf-8"), external_ip
     except Exception as e:
         logger.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -31,3 +31,4 @@ redis
 prometheus_fastapi_instrumentator
 pandas
 scikit-learn
+cryptography

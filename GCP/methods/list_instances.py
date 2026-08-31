@@ -53,5 +53,17 @@ async def sample_aggregated_list(project_name: str, request: Request, db: AsyncS
         if response.instances:
             for i in response.instances:
                 print(f"found {i.name} in {zone}")
-                my_instances[i.name] = zone
+
+                external_ip = ""
+
+                if i.network_interfaces:
+                    if i.network_interfaces[0].access_configs:
+                        external_ip = i.network_interfaces[0].access_configs[0].nat_i_p or ""
+
+                my_instances[i.name] = {
+                    "zone": zone,
+                    "public_ip": external_ip,
+                    "machine_type": i.machine_type.split("/")[-1] if i.machine_type else "",
+                    "status": i.status or "Unknown"
+                }
     return my_instances

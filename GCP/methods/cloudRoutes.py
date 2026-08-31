@@ -66,6 +66,20 @@ async def machine_type(payload: getProject, request: Request, db: AsyncSession =
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+# @router.post("/create_machine")
+# async def create_machine(payload: createInstance, request: Request, db: AsyncSession = Depends(get_db)):
+#     try:
+#         final_disk_type = f"zones/{payload.zone}/diskTypes/{payload.disk_type}"
+#         newest_debian = await get_image_from_family(
+#             request, db, project= payload.image_project, family= payload.image_family,
+#         )
+#         disks = [await disk_from_image(final_disk_type, payload.disk_size_gb, True, newest_debian.self_link)]
+#         await create_instance(payload.project_id, payload.zone, payload.instance_name, disks, payload.machine_type, request, db)
+#         logger.info('instance successfully created ')
+#         return {f" Here we created the instance {payload.instance_name}"}
+#     except Exception as e:
+#         logger.error(f"Error: {e}")
+#         raise HTTPException(status_code=500, detail=str(e))
 @router.post("/create_machine")
 async def create_machine(payload: createInstance, request: Request, db: AsyncSession = Depends(get_db)):
     try:
@@ -74,9 +88,9 @@ async def create_machine(payload: createInstance, request: Request, db: AsyncSes
             request, db, project= payload.image_project, family= payload.image_family,
         )
         disks = [await disk_from_image(final_disk_type, payload.disk_size_gb, True, newest_debian.self_link)]
-        await create_instance(payload.project_id, payload.zone, payload.instance_name, disks, payload.machine_type, request, db)
+        vm, private_key, external_ip = await create_instance(payload.project_id, payload.zone, payload.instance_name, disks, payload.machine_type, request, db)
         logger.info('instance successfully created ')
-        return {f" Here we created the instance {payload.instance_name}"}
+        return {"vm_name": vm.name, "private_key": private_key, "public_ip": external_ip}
     except Exception as e:
         logger.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
