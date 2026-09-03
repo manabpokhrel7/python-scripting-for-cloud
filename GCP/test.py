@@ -1,28 +1,20 @@
-# Source - https://stackoverflow.com/a/39126754
-# Posted by Dave Halter, modified by community. See post 'Timeline' for change history
-# Retrieved 2026-08-30, License - CC BY-SA 4.0
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    while True:
+        data = await websocket.receive_text()
+        await websocket.send_text(f"Message text was: {data}")
 
-from cryptography.hazmat.primitives import serialization as crypto_serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.backends import default_backend as crypto_default_backend
-from cryptography.fernet import Fernet
-
-key = rsa.generate_private_key(
-    backend=crypto_default_backend(),
-    public_exponent=65537,
-    key_size=2048
-)
-
-private_key = key.private_bytes(
-    crypto_serialization.Encoding.PEM,
-    crypto_serialization.PrivateFormat.TraditionalOpenSSL,
-    crypto_serialization.NoEncryption()
-)
-
-public_key = key.public_key().public_bytes(
-    crypto_serialization.Encoding.OpenSSH,
-    crypto_serialization.PublicFormat.OpenSSH
-)
-
-
-print(public_key.decode("utf-8"))
+@app.post('/api/ssh')
+async def run_client(host: str, username: str, client_keys: UploadFile = File(...)) -> str:
+    key_data = await client_keys.read()
+    async with asyncssh.connect(host, username=username, client_keys=[key_data], known_hosts=None) as conn:
+        try:
+            result = await conn.run('ls /', check=True)
+            return result.stdout
+        except asyncssh.ProcessError as exc:
+            print(exc.stderr, end='')
+            print(f'Process exited with status {exc.exit_status}',
+                  file=sys.stderr)
+        else:
+            print(result.stdout, end='')

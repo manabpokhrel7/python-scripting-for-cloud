@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, UploadFile, File
 from legacyAuth.auth import router as auth
 from methods.cloudRoutes import router as cloud
 from AI.aitest import router as ai
@@ -19,6 +19,7 @@ import os
 from dotenv import load_dotenv
 from cache.redis import r
 from prometheus_fastapi_instrumentator import Instrumentator
+import asyncio, asyncssh, sys
 
 
 load_dotenv()
@@ -59,6 +60,43 @@ app.include_router(cloud, prefix="/api/cloud")
 app.include_router(ai, prefix="/api/ai")
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    connection_info = await websocket.receive_json() #Recieving in json format from frontend
+    private_key = asyncssh.import_private_key(
+        connection_info["client_keys"]
+    ) #client_keys below will only accept file so we have to do this or it will think the entire string is filename
+    async with asyncssh.connect(connection_info["host"], username=connection_info["username"], client_keys=[private_key], known_hosts=None) as conn:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                result = await conn.run(f'{data}', check=True)
+                await websocket.send_text(result.stdout)
+            except asyncssh.ProcessError as exc:
+                print(exc.stderr, end='')
+                print(f'Process exited with status {exc.exit_status}',
+                      file=sys.stderr)
+            else:
+                print(result.stdout, end='')
+
+# @app.post('/api/ssh')
+# async def run_client(host: str, username: str, client_keys: UploadFile = File(...)) -> str:
+#     key_data = await client_keys.read()
+#     async with asyncssh.connect(host, username=username, client_keys=[key_data], known_hosts=None) as conn:
+#         try:
+#             result = await conn.run('ls /', check=True)
+#             return result.stdout
+#         except asyncssh.ProcessError as exc:
+#             print(exc.stderr, end='')
+#             print(f'Process exited with status {exc.exit_status}',
+#                   file=sys.stderr)
+#         else:
+#             print(result.stdout, end='')
+
+
 
 @app.get('/api/health')
 async def healthcheck(db: AsyncSession = Depends(get_db)):

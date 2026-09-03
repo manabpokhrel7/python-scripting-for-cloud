@@ -1,9 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import "./App.css";
 
-// const API_BASE = "/api"; //For Kubernetes
-// const API_BASE = "https://cloud.manabpokhrel.com.np/api"; //For cloud Run
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import "@xterm/xterm/css/xterm.css";
+
+
+// const API_BASE = "/api"; // Kubernetes
+// const API_BASE = "https://cloud.manabpokhrel.com.np/api";
+
 const API_BASE = "http://localhost:8000/api";
+
 
 const IMAGE_PROJECTS = [
   "debian-cloud",
@@ -16,8 +28,9 @@ const IMAGE_PROJECTS = [
   "fedora-coreos-cloud",
   "opensuse-cloud",
   "oracle-linux-cloud",
-  "centos-cloud"
+  "centos-cloud",
 ];
+
 
 interface FormData {
   project_id: string;
@@ -30,6 +43,7 @@ interface FormData {
   disk_size_gb: number;
 }
 
+
 interface Instance {
   name: string;
   zone: string;
@@ -38,604 +52,2712 @@ interface Instance {
   public_ip: string;
 }
 
+
 const App: React.FC = () => {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [sub, setSub] = useState("");
 
-  const [form, setForm] = useState<FormData>({
-    project_id: "",
-    zone: "",
-    instance_name: "",
-    machine_type: "",
-    image_project: "debian-cloud",
-    image_family: "debian-12",
-    disk_type: "",
-    disk_size_gb: 20,
-  });
+  // ------------------------------------------------------------
+  // AUTH
+  // ------------------------------------------------------------
 
-  const [projects, setProjects] = useState<string[]>([]);
-  const [zones, setZones] = useState<string[]>([]);
-  const [machineTypes, setMachineTypes] = useState<{ [key: string]: string }>({});
-  const [diskTypes, setDiskTypes] = useState<string[]>([]);
-  const [instances, setInstances] = useState<Instance[]>([]);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingInstances, setLoadingInstances] = useState(false);
-  const [loadingMachineTypes, setLoadingMachineTypes] = useState(false);
+  const [loggedIn, setLoggedIn] =
+    useState(false);
 
-  // AI states
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiResponse, setAiResponse] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
+  const [sub, setSub] =
+    useState("");
+
+
+  // ------------------------------------------------------------
+  // VM FORM
+  // ------------------------------------------------------------
+
+  const [form, setForm] =
+    useState<FormData>({
+      project_id: "",
+      zone: "",
+      instance_name: "",
+      machine_type: "",
+      image_project: "debian-cloud",
+      image_family: "debian-12",
+      disk_type: "",
+      disk_size_gb: 20,
+    });
+
+
+  const [projects, setProjects] =
+    useState<string[]>([]);
+
+  const [zones, setZones] =
+    useState<string[]>([]);
+
+  const [machineTypes, setMachineTypes] =
+    useState<{ [key: string]: string }>({});
+
+  const [diskTypes, setDiskTypes] =
+    useState<string[]>([]);
+
+  const [instances, setInstances] =
+    useState<Instance[]>([]);
+
+
+  // ------------------------------------------------------------
+  // UI STATES
+  // ------------------------------------------------------------
+
+  const [message, setMessage] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [
+    loadingInstances,
+    setLoadingInstances,
+  ] = useState(false);
+
+  const [
+    loadingMachineTypes,
+    setLoadingMachineTypes,
+  ] = useState(false);
+
+
+  // ------------------------------------------------------------
+  // AI
+  // ------------------------------------------------------------
+
+  const [aiPrompt, setAiPrompt] =
+    useState("");
+
+  const [aiResponse, setAiResponse] =
+    useState("");
+
+  const [aiLoading, setAiLoading] =
+    useState(false);
+
+  const [aiOpen, setAiOpen] =
+    useState(false);
+
+
+  // ------------------------------------------------------------
+  // SSH
+  // ------------------------------------------------------------
+
+  const [wsStatus, setWsStatus] =
+    useState("Disconnected");
+
+  const [
+    selectedSshInstance,
+    setSelectedSshInstance,
+  ] = useState<Instance | null>(null);
+
+
+  /*
+    We keep another reference to the currently
+    selected VM.
+
+    This avoids React closure problems where
+    xterm could remember an older state value
+    and display:
+
+        python@vm
+
+    instead of:
+
+        python@test1
+  */
+
+  const selectedSshInstanceRef =
+    useRef<Instance | null>(null);
+
+
+  // ------------------------------------------------------------
+  // XTERM REFS
+  // ------------------------------------------------------------
+
+  const terminalContainerRef =
+    useRef<HTMLDivElement | null>(null);
+
+  const terminalRef =
+    useRef<Terminal | null>(null);
+
+  const fitAddonRef =
+    useRef<FitAddon | null>(null);
+
+
+  // ------------------------------------------------------------
+  // WEBSOCKET
+  // ------------------------------------------------------------
+
+  const wsRef =
+    useRef<WebSocket | null>(null);
+
+
+  /*
+    Because your backend currently uses:
+
+        conn.run(command)
+
+    we still build the full command locally.
+
+    Later when we convert the backend to PTY,
+    this buffer will disappear.
+  */
+
+  const commandBufferRef =
+    useRef("");
+
+
+  // ------------------------------------------------------------
+  // PRIVATE KEY FILE INPUT
+  // ------------------------------------------------------------
+
+  const privateKeyInputRef =
+    useRef<HTMLInputElement | null>(null);
+
+  const pendingInstanceRef =
+    useRef<Instance | null>(null);
+
+
+  // ============================================================
+  // LOGIN CHECK
+  // ============================================================
 
   useEffect(() => {
+
     const checkLogin = async () => {
+
       try {
-        const res = await fetch(`${API_BASE}/check_login`, {
-          credentials: "include",
-        });
-        const data = await res.json();
-        setLoggedIn(data.logged_in);
-        setSub(data.sub || "");
+
+        const res = await fetch(
+          `${API_BASE}/check_login`,
+          {
+            credentials: "include",
+          }
+        );
+
+        const data =
+          await res.json();
+
+        setLoggedIn(
+          data.logged_in
+        );
+
+        setSub(
+          data.sub || ""
+        );
+
         if (data.logged_in) {
           fetchProjects();
         }
-      } catch (e) {
-        console.error("Login check failed", e);
+
+      } catch (error) {
+
+        console.error(
+          "Login check failed:",
+          error
+        );
+
       }
+
     };
 
     checkLogin();
+
   }, []);
 
-  const handleLogin = () => {
-    window.location.href = `${API_BASE}/login`;
-  };
 
-  const handleLogout = () => {
-    window.location.href = `${API_BASE}/logout`;
-  };
+  // ============================================================
+  // XTERM INITIALIZATION
+  // ============================================================
 
-  const fetchProjects = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/cloud/get_projects`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({}),
-      });
+  useEffect(() => {
 
-      if (!res.ok) return;
-
-      const data = await res.json();
-      setProjects(data.project_name || []);
-    } catch (e) {
-      console.warn("Projects fetch error ignored:", e);
-    }
-  };
-
-  const fetchZones = async (projectId: string) => {
-    try {
-      const res = await fetch(`${API_BASE}/cloud/get_zones`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ project_id: projectId }),
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-      setZones(data.zone_name || []);
-    } catch (e) {
-      console.warn("Zones fetch error ignored:", e);
-    }
-  };
-
-  const fetchMachineTypes = async (projectId: string) => {
-    setLoadingMachineTypes(true);
-    try {
-      const res = await fetch(`${API_BASE}/cloud/machine_type`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ project_id: projectId }),
-      });
-
-      if (!res.ok) {
-        setMachineTypes({});
-        return;
-      }
-
-      const data = await res.json();
-      setMachineTypes(data.machine_name || {});
-    } catch (e) {
-      console.warn("Machine types fetch error ignored:", e);
-      setMachineTypes({});
-    } finally {
-      setLoadingMachineTypes(false);
-    }
-  };
-
-  const fetchDiskTypes = async (projectId: string, zone: string) => {
-    try {
-      const res = await fetch(`${API_BASE}/cloud/disk_types`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ project_id: projectId, zone }),
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-      setDiskTypes(data.disk_name || []);
-    } catch (e) {
-      console.warn("Disk types fetch error ignored:", e);
-    }
-  };
-
-  const fetchInstances = async () => {
-    if (!form.project_id) {
-      setMessage("Please select a project first to list instances");
+    if (!loggedIn) {
       return;
     }
 
-    try {
-      setLoadingInstances(true);
-      setMessage("");
+    if (
+      !terminalContainerRef.current
+    ) {
+      return;
+    }
 
-      const res = await fetch(`${API_BASE}/cloud/list_instance`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ project_id: form.project_id }),
+    if (terminalRef.current) {
+      return;
+    }
+
+
+    const terminal =
+      new Terminal({
+        cursorBlink: true,
+        fontSize: 14,
+        scrollback: 5000,
+        convertEol: true,
       });
 
-      if (!res.ok) throw new Error(await res.text());
 
-      const data = await res.json();
+    const fitAddon =
+      new FitAddon();
 
-      const instancesArr: Instance[] = Object.entries(
-        data.instance_name || {}
-      ).map(([name, value]: [string, any]) => {
-        /*
-          Supports your current backend:
-          {
-            "vm-name": "zones/us-central1-a"
+
+    terminal.loadAddon(
+      fitAddon
+    );
+
+
+    terminal.open(
+      terminalContainerRef.current
+    );
+
+
+    fitAddon.fit();
+
+
+    terminalRef.current =
+      terminal;
+
+    fitAddonRef.current =
+      fitAddon;
+
+
+    terminal.writeln(
+      "Cloud Manager SSH Console"
+    );
+
+    terminal.writeln(
+      "Select a running instance and click SSH."
+    );
+
+    terminal.writeln("");
+
+
+    // ----------------------------------------------------------
+    // KEYBOARD INPUT
+    // ----------------------------------------------------------
+
+    const disposable =
+      terminal.onData((data) => {
+
+        const socket =
+          wsRef.current;
+
+
+        // ENTER
+        if (data === "\r") {
+
+          const command =
+            commandBufferRef.current;
+
+          terminal.write(
+            "\r\n"
+          );
+
+          commandBufferRef.current =
+            "";
+
+
+          if (
+            !socket ||
+            socket.readyState !==
+              WebSocket.OPEN
+          ) {
+
+            terminal.writeln(
+              "SSH is not connected."
+            );
+
+            writePrompt();
+
+            return;
           }
 
-          And also supports a future backend response like:
-          {
-            "vm-name": {
-              "zone": "zones/us-central1-a",
-              "public_ip": "34.123.45.67",
-              "machine_type": "e2-medium",
-              "status": "RUNNING"
-            }
-          }
-        */
 
-        if (typeof value === "string") {
-          return {
-            name,
-            zone: value.replace("zones/", ""),
-            machine_type: "",
-            status: "Unknown",
-            public_ip: "",
-          };
+          if (
+            !command.trim()
+          ) {
+
+            writePrompt();
+
+            return;
+          }
+
+
+          socket.send(
+            command
+          );
+
+          return;
         }
 
-        return {
-          name,
-          zone: (value.zone || "").replace("zones/", ""),
-          machine_type: value.machine_type || "",
-          status: value.status || "Unknown",
-          public_ip: value.public_ip || "",
-        };
+
+        // ------------------------------------------------------
+        // BACKSPACE
+        // ------------------------------------------------------
+
+        if (
+          data === "\u007F"
+        ) {
+
+          if (
+            commandBufferRef
+              .current.length > 0
+          ) {
+
+            commandBufferRef.current =
+              commandBufferRef.current.slice(
+                0,
+                -1
+              );
+
+            terminal.write(
+              "\b \b"
+            );
+          }
+
+          return;
+        }
+
+
+        // ------------------------------------------------------
+        // CTRL + C
+        // ------------------------------------------------------
+
+        if (
+          data === "\u0003"
+        ) {
+
+          commandBufferRef.current =
+            "";
+
+          terminal.write(
+            "^C\r\n"
+          );
+
+          writePrompt();
+
+          return;
+        }
+
+
+        /*
+          Ignore escape sequences for now.
+
+          Arrow keys, vim, nano, top, etc.
+          will work after the backend becomes
+          a real PTY.
+        */
+
+        if (
+          data.startsWith(
+            "\u001b"
+          )
+        ) {
+          return;
+        }
+
+
+        // Normal characters
+
+        commandBufferRef.current +=
+          data;
+
+        terminal.write(
+          data
+        );
+
       });
 
-      setInstances(instancesArr);
-      setMessage("Instances fetched successfully");
-    } catch (e: any) {
-      setMessage(e.message || "Failed to fetch instances");
-    } finally {
-      setLoadingInstances(false);
+
+    // ----------------------------------------------------------
+    // TERMINAL RESIZE
+    // ----------------------------------------------------------
+
+    const handleResize =
+      () => {
+
+        try {
+          fitAddon.fit();
+        } catch {
+          // ignore resize errors
+        }
+
+      };
+
+
+    window.addEventListener(
+      "resize",
+      handleResize
+    );
+
+
+    return () => {
+
+      disposable.dispose();
+
+      window.removeEventListener(
+        "resize",
+        handleResize
+      );
+
+
+      if (wsRef.current) {
+
+        wsRef.current.close();
+
+        wsRef.current =
+          null;
+      }
+
+
+      terminal.dispose();
+
+      terminalRef.current =
+        null;
+
+      fitAddonRef.current =
+        null;
+
+    };
+
+  }, [loggedIn]);
+
+
+  // ============================================================
+  // TERMINAL PROMPT
+  // ============================================================
+
+  const writePrompt = () => {
+
+    const terminal =
+      terminalRef.current;
+
+    if (!terminal) {
+      return;
     }
+
+
+    const instance =
+      selectedSshInstanceRef.current;
+
+
+    if (instance) {
+
+      terminal.write(
+        `python@${instance.name}:~$ `
+      );
+
+    } else {
+
+      terminal.write(
+        "python@vm:~$ "
+      );
+
+    }
+
   };
 
-  const handleDelete = async (instanceName: string, zone: string) => {
-    try {
-      setLoading(true);
-      setMessage("");
 
-      const res = await fetch(`${API_BASE}/cloud/delete_instance`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          instance_name: instanceName,
-          zone,
-          project_id: form.project_id,
-        }),
-      });
+  // ============================================================
+  // LOGIN / LOGOUT
+  // ============================================================
 
-      if (!res.ok) throw new Error(await res.text());
+  const handleLogin = () => {
 
-      const data = await res.json();
-      setMessage(data.delete_details || "Instance deleted");
+    window.location.href =
+      `${API_BASE}/login`;
 
-      setInstances((prev) => prev.filter((i) => i.name !== instanceName));
-    } catch (e: any) {
-      setMessage(e.message || "Failed to delete instance");
-    } finally {
-      setLoading(false);
-    }
   };
+
+
+  const handleLogout = () => {
+
+    window.location.href =
+      `${API_BASE}/logout`;
+
+  };
+
+
+  // ============================================================
+  // FETCH PROJECTS
+  // ============================================================
+
+  const fetchProjects =
+    async () => {
+
+      try {
+
+        const res =
+          await fetch(
+            `${API_BASE}/cloud/get_projects`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              credentials:
+                "include",
+
+              body: JSON.stringify(
+                {}
+              ),
+            }
+          );
+
+
+        if (!res.ok) {
+          return;
+        }
+
+
+        const data =
+          await res.json();
+
+
+        setProjects(
+          data.project_name || []
+        );
+
+      } catch (error) {
+
+        console.warn(
+          "Projects fetch error:",
+          error
+        );
+
+      }
+
+    };
+
+
+  // ============================================================
+  // FETCH ZONES
+  // ============================================================
+
+  const fetchZones =
+    async (
+      projectId: string
+    ) => {
+
+      try {
+
+        const res =
+          await fetch(
+            `${API_BASE}/cloud/get_zones`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              credentials:
+                "include",
+
+              body: JSON.stringify({
+                project_id:
+                  projectId,
+              }),
+            }
+          );
+
+
+        if (!res.ok) {
+          return;
+        }
+
+
+        const data =
+          await res.json();
+
+
+        setZones(
+          data.zone_name || []
+        );
+
+      } catch (error) {
+
+        console.warn(
+          "Zones fetch error:",
+          error
+        );
+
+      }
+
+    };
+
+
+  // ============================================================
+  // FETCH MACHINE TYPES
+  // ============================================================
+
+  const fetchMachineTypes =
+    async (
+      projectId: string
+    ) => {
+
+      setLoadingMachineTypes(
+        true
+      );
+
+
+      try {
+
+        const res =
+          await fetch(
+            `${API_BASE}/cloud/machine_type`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              credentials:
+                "include",
+
+              body: JSON.stringify({
+                project_id:
+                  projectId,
+              }),
+            }
+          );
+
+
+        if (!res.ok) {
+
+          setMachineTypes(
+            {}
+          );
+
+          return;
+        }
+
+
+        const data =
+          await res.json();
+
+
+        setMachineTypes(
+          data.machine_name || {}
+        );
+
+      } catch (error) {
+
+        console.warn(
+          "Machine type error:",
+          error
+        );
+
+        setMachineTypes({});
+
+      } finally {
+
+        setLoadingMachineTypes(
+          false
+        );
+
+      }
+
+    };
+
+
+  // ============================================================
+  // FETCH DISK TYPES
+  // ============================================================
+
+  const fetchDiskTypes =
+    async (
+      projectId: string,
+      zone: string
+    ) => {
+
+      try {
+
+        const res =
+          await fetch(
+            `${API_BASE}/cloud/disk_types`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              credentials:
+                "include",
+
+              body: JSON.stringify({
+                project_id:
+                  projectId,
+
+                zone,
+              }),
+            }
+          );
+
+
+        if (!res.ok) {
+          return;
+        }
+
+
+        const data =
+          await res.json();
+
+
+        setDiskTypes(
+          data.disk_name || []
+        );
+
+      } catch (error) {
+
+        console.warn(
+          "Disk types error:",
+          error
+        );
+
+      }
+
+    };
+
+
+  // ============================================================
+  // FORM CHANGE
+  // ============================================================
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement |
+      HTMLSelectElement
+    >
   ) => {
-    const { name, value } = e.target;
+
+    const {
+      name,
+      value,
+    } = e.target;
+
 
     setForm((prev) => ({
       ...prev,
-      [name]: name === "disk_size_gb" ? Number(value) : value,
+
+      [name]:
+        name ===
+        "disk_size_gb"
+          ? Number(value)
+          : value,
     }));
 
-    if (name === "project_id") {
+
+    // ----------------------------------------------------------
+    // PROJECT CHANGED
+    // ----------------------------------------------------------
+
+    if (
+      name === "project_id"
+    ) {
+
       setForm((prev) => ({
         ...prev,
+
         project_id: value,
+
         zone: "",
+
         machine_type: "",
+
         disk_type: "",
       }));
+
+
       fetchZones(value);
-      fetchMachineTypes(value);
-      setDiskTypes([]);
-    }
 
-    if (name === "zone") {
-      setForm((prev) => ({
-        ...prev,
-        zone: value,
-        disk_type: "",
-      }));
-      fetchDiskTypes(form.project_id, value);
-    }
-  };
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      setLoading(true);
-      setMessage("");
-
-      const res = await fetch(`${API_BASE}/cloud/create_machine`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(form),
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-
-      const data = await res.json();
-
-      const vmName = data.vm_name;
-      const privateKey = data.private_key;
-      const publicIp = data.public_ip;
-
-      if (!privateKey) {
-        throw new Error("VM created but private SSH key was not returned");
-      }
-
-      const blob = new Blob([privateKey], {
-        type: "application/x-pem-file",
-      });
-
-      const downloadUrl = URL.createObjectURL(blob);
-
-      const downloadLink = document.createElement("a");
-
-      downloadLink.href = downloadUrl;
-      downloadLink.download = `${vmName}_private_key.pem`;
-
-      document.body.appendChild(downloadLink);
-
-      downloadLink.click();
-
-      document.body.removeChild(downloadLink);
-
-      URL.revokeObjectURL(downloadUrl);
-
-      setMessage(
-        `Created instance "${vmName}". Public IP: ${
-          publicIp || ""
-        }. SSH private key downloaded successfully.`
+      fetchMachineTypes(
+        value
       );
 
+      setDiskTypes([]);
+
+    }
+
+
+    // ----------------------------------------------------------
+    // ZONE CHANGED
+    // ----------------------------------------------------------
+
+    if (
+      name === "zone"
+    ) {
+
       setForm((prev) => ({
         ...prev,
-        instance_name: "",
+
+        zone: value,
+
+        disk_type: "",
       }));
-    } catch (e: any) {
-      setMessage(e.message || "Failed to create instance");
-    } finally {
-      setLoading(false);
+
+
+      fetchDiskTypes(
+        form.project_id,
+        value
+      );
+
     }
+
   };
 
-  const handleAskAI = async (e: React.FormEvent) => {
-    e.preventDefault();
 
-    if (!aiPrompt.trim()) return;
+  // ============================================================
+  // CREATE VM
+  // ============================================================
 
-    try {
-      setAiLoading(true);
-      setAiResponse("");
+  const handleCreate =
+    async (
+      e: React.FormEvent
+    ) => {
 
-      const res = await fetch(`${API_BASE}/ai/response`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ input_text: aiPrompt }),
-      });
+      e.preventDefault();
 
-      if (!res.ok) {
-        throw new Error(await res.text());
+
+      try {
+
+        setLoading(true);
+
+        setMessage("");
+
+
+        const res =
+          await fetch(
+            `${API_BASE}/cloud/create_machine`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              credentials:
+                "include",
+
+              body: JSON.stringify(
+                form
+              ),
+            }
+          );
+
+
+        if (!res.ok) {
+
+          throw new Error(
+            await res.text()
+          );
+
+        }
+
+
+        const data =
+          await res.json();
+
+
+        const vmName =
+          data.vm_name;
+
+        const privateKey =
+          data.private_key;
+
+        const publicIp =
+          data.public_ip;
+
+
+        if (!privateKey) {
+
+          throw new Error(
+            "VM created but private SSH key was not returned"
+          );
+
+        }
+
+
+        // ------------------------------------------------------
+        // DOWNLOAD PRIVATE KEY
+        // ------------------------------------------------------
+
+        const blob =
+          new Blob(
+            [privateKey],
+            {
+              type:
+                "application/x-pem-file",
+            }
+          );
+
+
+        const downloadUrl =
+          URL.createObjectURL(
+            blob
+          );
+
+
+        const downloadLink =
+          document.createElement(
+            "a"
+          );
+
+
+        downloadLink.href =
+          downloadUrl;
+
+
+        downloadLink.download =
+          `${vmName}_private_key.pem`;
+
+
+        document.body.appendChild(
+          downloadLink
+        );
+
+
+        downloadLink.click();
+
+
+        document.body.removeChild(
+          downloadLink
+        );
+
+
+        URL.revokeObjectURL(
+          downloadUrl
+        );
+
+
+        setMessage(
+          `Created ${vmName}. Public IP: ${publicIp}. Private key downloaded.`
+        );
+
+
+        setForm((prev) => ({
+          ...prev,
+          instance_name: "",
+        }));
+
+
+        // Automatically refresh instance list
+
+        await fetchInstances();
+
+      } catch (error: any) {
+
+        setMessage(
+          error.message ||
+          "Failed to create instance"
+        );
+
+      } finally {
+
+        setLoading(false);
+
       }
 
-      const data = await res.json();
-      setAiResponse(data.response || "No response received");
-    } catch (e: any) {
-      setAiResponse(`Error: ${e.message || "AI request failed"}`);
-    } finally {
-      setAiLoading(false);
-    }
-  };
+    };
+
+
+  // ============================================================
+  // FETCH INSTANCES
+  // ============================================================
+
+  const fetchInstances =
+    async () => {
+
+      if (
+        !form.project_id
+      ) {
+
+        setMessage(
+          "Select a project first."
+        );
+
+        return;
+      }
+
+
+      try {
+
+        setLoadingInstances(
+          true
+        );
+
+        setMessage("");
+
+
+        const res =
+          await fetch(
+            `${API_BASE}/cloud/list_instance`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              credentials:
+                "include",
+
+              body: JSON.stringify({
+                project_id:
+                  form.project_id,
+              }),
+            }
+          );
+
+
+        if (!res.ok) {
+
+          throw new Error(
+            await res.text()
+          );
+
+        }
+
+
+        const data =
+          await res.json();
+
+
+        const instancesArr:
+          Instance[] =
+          Object.entries(
+            data.instance_name ||
+              {}
+          ).map(
+            (
+              [name, value]:
+              [string, any]
+            ) => {
+
+              if (
+                typeof value ===
+                "string"
+              ) {
+
+                return {
+                  name,
+
+                  zone:
+                    value.replace(
+                      "zones/",
+                      ""
+                    ),
+
+                  machine_type: "",
+
+                  status:
+                    "Unknown",
+
+                  public_ip: "",
+                };
+
+              }
+
+
+              return {
+
+                name,
+
+                zone:
+                  (
+                    value.zone ||
+                    ""
+                  ).replace(
+                    "zones/",
+                    ""
+                  ),
+
+                machine_type:
+                  value.machine_type ||
+                  "",
+
+                status:
+                  value.status ||
+                  "Unknown",
+
+                public_ip:
+                  value.public_ip ||
+                  "",
+              };
+
+            }
+          );
+
+
+        setInstances(
+          instancesArr
+        );
+
+
+      } catch (error: any) {
+
+        setMessage(
+          error.message ||
+          "Failed to fetch instances"
+        );
+
+      } finally {
+
+        setLoadingInstances(
+          false
+        );
+
+      }
+
+    };
+
+
+  // ============================================================
+  // DELETE VM
+  // ============================================================
+
+  const handleDelete =
+    async (
+      instanceName: string,
+      zone: string
+    ) => {
+
+      try {
+
+        setLoading(true);
+
+        setMessage("");
+
+
+        const res =
+          await fetch(
+            `${API_BASE}/cloud/delete_instance`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              credentials:
+                "include",
+
+              body: JSON.stringify({
+                instance_name:
+                  instanceName,
+
+                zone,
+
+                project_id:
+                  form.project_id,
+              }),
+            }
+          );
+
+
+        if (!res.ok) {
+
+          throw new Error(
+            await res.text()
+          );
+
+        }
+
+
+        setMessage(
+          `${instanceName} deleted successfully.`
+        );
+
+
+        setInstances(
+          (previous) =>
+            previous.filter(
+              (instance) =>
+                instance.name !==
+                instanceName
+            )
+        );
+
+
+      } catch (error: any) {
+
+        setMessage(
+          error.message ||
+          "Failed to delete instance"
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+
+  // ============================================================
+  // AI
+  // ============================================================
+
+  const handleAskAI =
+    async (
+      e: React.FormEvent
+    ) => {
+
+      e.preventDefault();
+
+
+      if (
+        !aiPrompt.trim()
+      ) {
+        return;
+      }
+
+
+      try {
+
+        setAiLoading(true);
+
+        setAiResponse("");
+
+
+        const res =
+          await fetch(
+            `${API_BASE}/ai/response`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              credentials:
+                "include",
+
+              body: JSON.stringify({
+                input_text:
+                  aiPrompt,
+              }),
+            }
+          );
+
+
+        if (!res.ok) {
+
+          throw new Error(
+            await res.text()
+          );
+
+        }
+
+
+        const data =
+          await res.json();
+
+
+        setAiResponse(
+          data.response ||
+          "No response received."
+        );
+
+
+      } catch (error: any) {
+
+        setAiResponse(
+          `Error: ${
+            error.message ||
+            "AI request failed"
+          }`
+        );
+
+      } finally {
+
+        setAiLoading(false);
+
+      }
+
+    };
+
+
+  // ============================================================
+  // CONNECT SSH BUTTON
+  // ============================================================
+
+  const handleConnectSsh =
+    (
+      instance: Instance
+    ) => {
+
+      if (
+        !instance.public_ip
+      ) {
+
+        setMessage(
+          `${instance.name} has no external IP.`
+        );
+
+        return;
+      }
+
+
+      if (
+        instance.status !==
+        "RUNNING"
+      ) {
+
+        setMessage(
+          `${instance.name} is not running.`
+        );
+
+        return;
+      }
+
+
+      pendingInstanceRef.current =
+        instance;
+
+
+      selectedSshInstanceRef.current =
+        instance;
+
+
+      setSelectedSshInstance(
+        instance
+      );
+
+
+      privateKeyInputRef
+        .current
+        ?.click();
+
+    };
+
+
+  // ============================================================
+  // PRIVATE KEY SELECTED
+  // ============================================================
+
+  const handlePrivateKeySelected =
+    async (
+      e: React.ChangeEvent<HTMLInputElement>
+    ) => {
+
+      const file =
+        e.target.files?.[0];
+
+
+      const instance =
+        pendingInstanceRef.current;
+
+
+      if (
+        !file ||
+        !instance
+      ) {
+
+        return;
+      }
+
+
+      try {
+
+        const privateKey =
+          await file.text();
+
+
+        startSshConnection(
+          instance,
+          privateKey
+        );
+
+
+      } catch (error) {
+
+        console.error(
+          "Private key read failed:",
+          error
+        );
+
+
+        setWsStatus(
+          "Key read failed"
+        );
+
+      } finally {
+
+        e.target.value =
+          "";
+
+      }
+
+    };
+
+
+  // ============================================================
+  // START SSH CONNECTION
+  // ============================================================
+
+  const startSshConnection =
+    (
+      instance: Instance,
+      privateKey: string
+    ) => {
+
+      const terminal =
+        terminalRef.current;
+
+
+      if (!terminal) {
+        return;
+      }
+
+
+      // Close previous WebSocket
+
+      if (
+        wsRef.current
+      ) {
+
+        wsRef.current.close();
+
+        wsRef.current =
+          null;
+      }
+
+
+      selectedSshInstanceRef.current =
+        instance;
+
+
+      setSelectedSshInstance(
+        instance
+      );
+
+
+      commandBufferRef.current =
+        "";
+
+
+      terminal.clear();
+
+
+      terminal.writeln(
+        `Connecting to ${instance.name}...`
+      );
+
+      terminal.writeln(
+        `Host: ${instance.public_ip}`
+      );
+
+      terminal.writeln(
+        "User: python"
+      );
+
+      terminal.writeln("");
+
+
+      setWsStatus(
+        "Connecting"
+      );
+
+
+      const socket =
+        new WebSocket(
+          "ws://localhost:8000/ws"
+        );
+
+
+      wsRef.current =
+        socket;
+
+
+      // --------------------------------------------------------
+      // WEBSOCKET CONNECTED
+      // --------------------------------------------------------
+
+      socket.onopen =
+        () => {
+
+          setWsStatus(
+            "Connected"
+          );
+
+
+          terminal.writeln(
+            "WebSocket connected."
+          );
+
+
+          terminal.writeln(
+            "Starting SSH session..."
+          );
+
+
+          socket.send(
+            JSON.stringify({
+              host:
+                instance.public_ip,
+
+              username:
+                "python",
+
+              client_keys:
+                privateKey,
+            })
+          );
+
+
+          terminal.writeln("");
+
+          writePrompt();
+
+        };
+
+
+      // --------------------------------------------------------
+      // SSH COMMAND OUTPUT
+      // --------------------------------------------------------
+
+      socket.onmessage =
+        (event) => {
+
+          const output =
+            String(
+              event.data
+            );
+
+
+          if (output) {
+
+            terminal.write(
+              output.replace(
+                /\r?\n/g,
+                "\r\n"
+              )
+            );
+
+
+            if (
+              !output.endsWith(
+                "\n"
+              )
+            ) {
+
+              terminal.write(
+                "\r\n"
+              );
+
+            }
+
+          }
+
+
+          writePrompt();
+
+        };
+
+
+      // --------------------------------------------------------
+      // ERROR
+      // --------------------------------------------------------
+
+      socket.onerror =
+        () => {
+
+          setWsStatus(
+            "Error"
+          );
+
+
+          terminal.writeln(
+            ""
+          );
+
+
+          terminal.writeln(
+            "SSH / WebSocket connection error."
+          );
+
+        };
+
+
+      // --------------------------------------------------------
+      // CLOSED
+      // --------------------------------------------------------
+
+      socket.onclose =
+        () => {
+
+          setWsStatus(
+            "Disconnected"
+          );
+
+
+          if (
+            wsRef.current ===
+            socket
+          ) {
+
+            wsRef.current =
+              null;
+
+          }
+
+
+          terminal.writeln(
+            ""
+          );
+
+
+          terminal.writeln(
+            "SSH connection closed."
+          );
+
+        };
+
+    };
+
+
+  // ============================================================
+  // DISCONNECT SSH
+  // ============================================================
+
+  const disconnectSsh =
+    () => {
+
+      if (
+        wsRef.current
+      ) {
+
+        wsRef.current.close();
+
+        wsRef.current =
+          null;
+
+      }
+
+
+      commandBufferRef.current =
+        "";
+
+
+      setWsStatus(
+        "Disconnected"
+      );
+
+
+      terminalRef.current?.writeln(
+        ""
+      );
+
+
+      terminalRef.current?.writeln(
+        "Disconnected from SSH."
+      );
+
+    };
+
+
+  // ============================================================
+  // LOGIN SCREEN
+  // ============================================================
 
   if (!loggedIn) {
+
     return (
-      <div className="centered">
-        <div className="login-card">
-          <h1>Cloud Manager By Manab</h1>
-          <p className="subtext">
-            Argocd 6
+
+      <div className="login-page">
+
+        <div className="login-panel">
+
+          <div className="login-logo">
+            M
+          </div>
+
+          <h1>
+            Cloud Manager
+          </h1>
+
+          <p>
+            Manage Google Cloud infrastructure
+            from one dashboard.
           </p>
-          <a
-            href="https://cloud.google.com/"
-            target="_blank"
-            rel="noreferrer"
-            className="link"
-          >
-            Need a GCP account? Create one here
-          </a>
-          <button onClick={handleLogin} className="btn-primary">
-            Login with Google
-          </button>
-          {message && <p className="message error">{message}</p>}
-        </div>
-      </div>
-    );
-  }
 
-  return (
-    <div className="page">
-      <header className="header">
-        <div>
-          <h1>argocd change 1</h1>
-          <p className="subtext">argocd change 1</p>
-        </div>
-
-        <div className="header-right">
-          <span className="user-chip">User: {sub}</span>
-          <button onClick={handleLogout} className="btn-logout">
-            Logout
-          </button>
-        </div>
-      </header>
-
-      <div className="main-grid">
-        <section className="panel">
-          <form onSubmit={handleCreate} className="form">
-            <h2>Create VM</h2>
-
-            <label>Project</label>
-            <select
-              name="project_id"
-              value={form.project_id}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select project</option>
-              {projects.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-
-            <label>Zone</label>
-            <select
-              name="zone"
-              value={form.zone}
-              onChange={handleChange}
-              required
-              disabled={!form.project_id}
-            >
-              <option value="">Select zone</option>
-              {zones.map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
-              ))}
-            </select>
-
-            <label>Machine Type</label>
-            <select
-              name="machine_type"
-              value={form.machine_type}
-              onChange={handleChange}
-              required
-              disabled={!form.project_id || loadingMachineTypes}
-            >
-              <option value="">
-                {loadingMachineTypes ? "Loading machine types..." : "Select machine"}
-              </option>
-              {Object.keys(machineTypes).map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-
-            <label>Disk Type</label>
-            <select
-              name="disk_type"
-              value={form.disk_type}
-              onChange={handleChange}
-              required
-              disabled={!form.zone}
-            >
-              <option value="">Select disk</option>
-              {diskTypes.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-
-            <label>Instance Name</label>
-            <input
-              name="instance_name"
-              value={form.instance_name}
-              onChange={handleChange}
-              required
-              placeholder="my-vm-instance"
-            />
-
-            <label>Image Project</label>
-            <select
-              name="image_project"
-              value={form.image_project}
-              onChange={handleChange}
-              required
-            >
-              {IMAGE_PROJECTS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-
-            <label>Image Family</label>
-            <input
-              name="image_family"
-              value={form.image_family}
-              onChange={handleChange}
-              required
-              placeholder="debian-12"
-            />
-
-            <label>Disk Size (GB)</label>
-            <input
-              type="number"
-              name="disk_size_gb"
-              value={form.disk_size_gb}
-              onChange={handleChange}
-              min={10}
-            />
-
-            <button type="submit" disabled={loading} className="btn-primary">
-              {loading ? "Creating..." : "Create VM"}
-            </button>
-          </form>
-
-          <div className="divider" />
 
           <button
-            type="button"
-            onClick={fetchInstances}
-            disabled={loadingInstances}
-            className="btn-primary full-width"
+            onClick={
+              handleLogin
+            }
+            className="primary-button login-button"
           >
-            {loadingInstances ? "Fetching Instances..." : "List Instances"}
+            Continue with Google
           </button>
 
-          {instances.length > 0 && (
-            <div className="instances-container">
-              <h2>Instances</h2>
-              {instances.map((inst) => (
-                <div key={`${inst.name}-${inst.zone}`} className="instance-card">
-                  <div>
-                    <strong>{inst.name}</strong>
-                    <br />
-                    Zone: {inst.zone}
-                    <br />
-                    Machine: {inst.machine_type || "N/A"}
-                    <br />
-                    Status: {inst.status}
-                    <br />
-                    External IP: {inst.public_ip || ""}
-                  </div>
-
-                  <button
-                    className="delete-btn"
-                    onClick={() => handleDelete(inst.name, inst.zone)}
-                    disabled={loading}
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
 
           {message && (
-            <div
-              className={`message ${
-                message.toLowerCase().includes("fail") ||
-                message.toLowerCase().includes("error")
-                  ? "error"
-                  : "success"
-              }`}
-            >
+
+            <div className="status-message error-message">
+
               {message}
+
             </div>
+
           )}
+
+        </div>
+
+      </div>
+
+    );
+
+  }
+
+
+  // ============================================================
+  // MAIN APP
+  // ============================================================
+
+  return (
+
+    <div className="app-shell">
+
+
+      {/* ======================================================
+          HIDDEN PRIVATE KEY INPUT
+      ====================================================== */}
+
+      <input
+        ref={
+          privateKeyInputRef
+        }
+        type="file"
+        accept=".pem,.key"
+        onChange={
+          handlePrivateKeySelected
+        }
+        style={{
+          display: "none",
+        }}
+      />
+
+
+      {/* ======================================================
+          TOP BAR
+      ====================================================== */}
+
+      <header className="topbar">
+
+        <div className="brand">
+
+          <div className="brand-logo">
+            M
+          </div>
+
+          <div className="brand-text">
+
+            <h1>
+              Cloud Manager
+            </h1>
+
+            <span>
+              Google Cloud Platform
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <div className="topbar-right">
+
+          <div className="user-pill">
+
+            <span className="user-dot" />
+
+            <span className="user-text">
+              {sub}
+            </span>
+
+          </div>
+
+
+          <button
+            className="logout-button"
+            onClick={
+              handleLogout
+            }
+          >
+            Logout
+          </button>
+
+        </div>
+
+      </header>
+
+
+      {/* ======================================================
+          MAIN DASHBOARD
+      ====================================================== */}
+
+      <main className="dashboard">
+
+
+        {/* ====================================================
+            LEFT SIDE
+        ==================================================== */}
+
+        <aside className="left-panel">
+
+
+          {/* ==================================================
+              CREATE VM
+          ================================================== */}
+
+          <section className="dashboard-card create-vm-card">
+
+            <div className="card-heading">
+
+              <div>
+
+                <h2>
+                  Create VM
+                </h2>
+
+                <p>
+                  Launch a Compute Engine instance
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <form
+              className="compact-form"
+              onSubmit={
+                handleCreate
+              }
+            >
+
+
+              {/* PROJECT + ZONE */}
+
+              <div className="form-grid">
+
+                <div className="form-field">
+
+                  <label>
+                    Project
+                  </label>
+
+                  <select
+                    name="project_id"
+                    value={
+                      form.project_id
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    required
+                  >
+
+                    <option value="">
+                      Select project
+                    </option>
+
+                    {projects.map(
+                      (project) => (
+
+                        <option
+                          key={
+                            project
+                          }
+                          value={
+                            project
+                          }
+                        >
+                          {project}
+                        </option>
+
+                      )
+                    )}
+
+                  </select>
+
+                </div>
+
+
+                <div className="form-field">
+
+                  <label>
+                    Zone
+                  </label>
+
+                  <select
+                    name="zone"
+                    value={
+                      form.zone
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    required
+                    disabled={
+                      !form.project_id
+                    }
+                  >
+
+                    <option value="">
+                      Select zone
+                    </option>
+
+                    {zones.map(
+                      (zone) => (
+
+                        <option
+                          key={
+                            zone
+                          }
+                          value={
+                            zone
+                          }
+                        >
+                          {zone}
+                        </option>
+
+                      )
+                    )}
+
+                  </select>
+
+                </div>
+
+              </div>
+
+
+              {/* NAME */}
+
+              <div className="form-field">
+
+                <label>
+                  Instance Name
+                </label>
+
+                <input
+                  name="instance_name"
+                  value={
+                    form.instance_name
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  required
+                  placeholder="example-vm"
+                />
+
+              </div>
+
+
+              {/* MACHINE + DISK */}
+
+              <div className="form-grid">
+
+                <div className="form-field">
+
+                  <label>
+                    Machine
+                  </label>
+
+                  <select
+                    name="machine_type"
+                    value={
+                      form.machine_type
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    required
+                    disabled={
+                      !form.project_id ||
+                      loadingMachineTypes
+                    }
+                  >
+
+                    <option value="">
+
+                      {loadingMachineTypes
+                        ? "Loading..."
+                        : "Select machine"}
+
+                    </option>
+
+
+                    {Object.keys(
+                      machineTypes
+                    ).map(
+                      (machine) => (
+
+                        <option
+                          key={
+                            machine
+                          }
+                          value={
+                            machine
+                          }
+                        >
+                          {machine}
+                        </option>
+
+                      )
+                    )}
+
+                  </select>
+
+                </div>
+
+
+                <div className="form-field">
+
+                  <label>
+                    Disk
+                  </label>
+
+                  <select
+                    name="disk_type"
+                    value={
+                      form.disk_type
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    required
+                    disabled={
+                      !form.zone
+                    }
+                  >
+
+                    <option value="">
+                      Select disk
+                    </option>
+
+
+                    {diskTypes.map(
+                      (disk) => (
+
+                        <option
+                          key={
+                            disk
+                          }
+                          value={
+                            disk
+                          }
+                        >
+                          {disk}
+                        </option>
+
+                      )
+                    )}
+
+                  </select>
+
+                </div>
+
+              </div>
+
+
+              {/* IMAGE */}
+
+              <div className="form-grid">
+
+                <div className="form-field">
+
+                  <label>
+                    Image
+                  </label>
+
+                  <select
+                    name="image_project"
+                    value={
+                      form.image_project
+                    }
+                    onChange={
+                      handleChange
+                    }
+                  >
+
+                    {IMAGE_PROJECTS.map(
+                      (project) => (
+
+                        <option
+                          key={
+                            project
+                          }
+                          value={
+                            project
+                          }
+                        >
+                          {project}
+                        </option>
+
+                      )
+                    )}
+
+                  </select>
+
+                </div>
+
+
+                <div className="form-field">
+
+                  <label>
+                    Family
+                  </label>
+
+                  <input
+                    name="image_family"
+                    value={
+                      form.image_family
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    placeholder="debian-12"
+                  />
+
+                </div>
+
+              </div>
+
+
+              {/* DISK SIZE */}
+
+              <div className="form-field">
+
+                <label>
+                  Disk Size
+                </label>
+
+                <div className="disk-size-input">
+
+                  <input
+                    type="number"
+                    name="disk_size_gb"
+                    value={
+                      form.disk_size_gb
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    min={10}
+                  />
+
+                  <span>
+                    GB
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              <button
+                type="submit"
+                className="primary-button create-button"
+                disabled={
+                  loading
+                }
+              >
+
+                {loading
+                  ? "Creating..."
+                  : "Create Instance"}
+
+              </button>
+
+            </form>
+
+          </section>
+
+
+          {/* ==================================================
+              INSTANCE LIST
+          ================================================== */}
+
+          <section className="dashboard-card instances-card">
+
+            <div className="instances-heading">
+
+              <div>
+
+                <h2>
+                  Instances
+                </h2>
+
+                <p>
+                  {instances.length} loaded
+                </p>
+
+              </div>
+
+
+              <button
+                className="secondary-button refresh-button"
+                onClick={
+                  fetchInstances
+                }
+                disabled={
+                  loadingInstances
+                }
+              >
+
+                {loadingInstances
+                  ? "Loading..."
+                  : "Refresh"}
+
+              </button>
+
+            </div>
+
+
+            <div className="instance-list">
+
+
+              {instances.length ===
+                0 && (
+
+                <div className="empty-instances">
+
+                  <div className="empty-icon">
+                    ☁
+                  </div>
+
+                  <p>
+                    No instances loaded
+                  </p>
+
+                  <span>
+                    Select a project and click Refresh.
+                  </span>
+
+                </div>
+
+              )}
+
+
+              {instances.map(
+                (instance) => (
+
+                  <div
+                    className="instance-row"
+                    key={`${instance.name}-${instance.zone}`}
+                  >
+
+                    <div className="instance-info">
+
+                      <div className="instance-title-row">
+
+                        <span
+                          className={`status-indicator ${
+                            instance.status ===
+                            "RUNNING"
+                              ? "running"
+                              : ""
+                          }`}
+                        />
+
+                        <strong>
+                          {instance.name}
+                        </strong>
+
+                      </div>
+
+
+                      <div className="instance-meta">
+
+                        <span>
+                          {instance.public_ip ||
+                            "No external IP"}
+                        </span>
+
+                        <span>
+                          {
+                            instance.machine_type
+                          }
+                        </span>
+
+                      </div>
+
+
+                      <div className="instance-zone">
+
+                        {instance.zone}
+
+                      </div>
+
+                    </div>
+
+
+                    <div className="instance-actions">
+
+                      <button
+                        className="ssh-button"
+                        onClick={() =>
+                          handleConnectSsh(
+                            instance
+                          )
+                        }
+                        disabled={
+                          !instance.public_ip ||
+                          instance.status !==
+                            "RUNNING"
+                        }
+                      >
+                        SSH
+                      </button>
+
+
+                      <button
+                        className="delete-button"
+                        onClick={() =>
+                          handleDelete(
+                            instance.name,
+                            instance.zone
+                          )
+                        }
+                        disabled={
+                          loading
+                        }
+                      >
+                        Delete
+                      </button>
+
+                    </div>
+
+                  </div>
+
+                )
+              )}
+
+            </div>
+
+          </section>
+
+
+          {/* ==================================================
+              STATUS MESSAGE
+          ================================================== */}
+
+          {message && (
+
+            <div className="status-message">
+
+              {message}
+
+            </div>
+
+          )}
+
+        </aside>
+
+
+        {/* ====================================================
+            TERMINAL SIDE
+        ==================================================== */}
+
+        <section className="terminal-panel">
+
+          <div className="terminal-header">
+
+            <div className="terminal-title">
+
+              <div className="terminal-icon">
+                &gt;_
+              </div>
+
+              <div>
+
+                <h2>
+                  SSH Terminal
+                </h2>
+
+                <p>
+
+                  {selectedSshInstance
+                    ? `${selectedSshInstance.name} • ${selectedSshInstance.public_ip}`
+                    : "No instance connected"}
+
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <div className="terminal-controls">
+
+              <div
+                className={`connection-badge ${
+                  wsStatus ===
+                  "Connected"
+                    ? "connected"
+                    : ""
+                }`}
+              >
+
+                <span />
+
+                {wsStatus}
+
+              </div>
+
+
+              <button
+                className="disconnect-button"
+                onClick={
+                  disconnectSsh
+                }
+                disabled={
+                  wsStatus ===
+                  "Disconnected"
+                }
+              >
+                Disconnect
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div className="terminal-body">
+
+            <div
+              ref={
+                terminalContainerRef
+              }
+              className="xterm-container"
+            />
+
+          </div>
+
+
+          <div className="terminal-footer">
+
+            <span>
+              xterm.js
+            </span>
+
+            <span>
+              WebSocket → FastAPI → AsyncSSH → GCP
+            </span>
+
+          </div>
+
         </section>
 
-        <section className="panel">
-          <h2>AI Assistant</h2>
-          <p className="subtext">
-            Ask your app anything. You can later connect this to cloud actions too.
-          </p>
+      </main>
 
-          <form onSubmit={handleAskAI} className="ai-form">
-            <textarea
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="Ask something..."
-              rows={8}
-            />
-            <button type="submit" className="btn-primary" disabled={aiLoading}>
-              {aiLoading ? "Thinking..." : "Ask AI"}
+
+      {/* ======================================================
+          FLOATING AI CHAT
+      ====================================================== */}
+
+      {aiOpen && (
+
+        <div className="ai-chat-window">
+
+          <div className="ai-chat-header">
+
+            <div className="ai-chat-heading">
+
+              <div className="ai-avatar">
+                AI
+              </div>
+
+              <div>
+
+                <strong>
+                  Cloud Assistant
+                </strong>
+
+                <span>
+                  Online
+                </span>
+
+              </div>
+
+            </div>
+
+
+            <button
+              className="ai-close-button"
+              onClick={() =>
+                setAiOpen(false)
+              }
+            >
+              ×
             </button>
+
+          </div>
+
+
+          <div className="ai-chat-body">
+
+            {!aiResponse && (
+
+              <div className="assistant-message">
+
+                <div className="small-ai-avatar">
+                  AI
+                </div>
+
+                <div className="chat-bubble assistant">
+
+                  Ask me about your cloud platform,
+                  GCP infrastructure, VMs, Linux,
+                  or DevOps.
+
+                </div>
+
+              </div>
+
+            )}
+
+
+            {aiPrompt &&
+              aiResponse && (
+
+              <div className="user-message">
+
+                <div className="chat-bubble user">
+
+                  {aiPrompt}
+
+                </div>
+
+              </div>
+
+            )}
+
+
+            {aiResponse && (
+
+              <div className="assistant-message">
+
+                <div className="small-ai-avatar">
+                  AI
+                </div>
+
+                <div className="chat-bubble assistant">
+
+                  {aiResponse}
+
+                </div>
+
+              </div>
+
+            )}
+
+
+            {aiLoading && (
+
+              <div className="assistant-message">
+
+                <div className="small-ai-avatar">
+                  AI
+                </div>
+
+                <div className="chat-bubble assistant typing">
+
+                  Thinking...
+
+                </div>
+
+              </div>
+
+            )}
+
+          </div>
+
+
+          <form
+            className="ai-chat-input"
+            onSubmit={
+              handleAskAI
+            }
+          >
+
+            <textarea
+              value={
+                aiPrompt
+              }
+              onChange={(e) =>
+                setAiPrompt(
+                  e.target.value
+                )
+              }
+              placeholder="Ask your cloud assistant..."
+              rows={1}
+            />
+
+
+            <button
+              type="submit"
+              disabled={
+                aiLoading
+              }
+            >
+              ➤
+            </button>
+
           </form>
 
-          <div className="ai-response-box">
-            <h3>Response</h3>
-            <div className="ai-response">
-              {aiResponse ? aiResponse : "AI response will appear here."}
-            </div>
-          </div>
-        </section>
-      </div>
+        </div>
+
+      )}
+
+
+      {/* ======================================================
+          FLOATING AI BUTTON
+      ====================================================== */}
+
+      {!aiOpen && (
+
+        <button
+          className="floating-ai-button"
+          onClick={() =>
+            setAiOpen(true)
+          }
+          aria-label="Open AI Assistant"
+        >
+
+          <span className="floating-ai-icon">
+            ✦
+          </span>
+
+          <span>
+            AI
+          </span>
+
+        </button>
+
+      )}
+
     </div>
+
   );
+
 };
+
 
 export default App;
