@@ -70,17 +70,26 @@ async def websocket_endpoint(websocket: WebSocket):
         connection_info["client_keys"]
     ) #client_keys below will only accept file so we have to do this or it will think the entire string is filename
     async with asyncssh.connect(connection_info["host"], username=connection_info["username"], client_keys=[private_key], known_hosts=None) as conn:
-        while True:
-            data = await websocket.receive_text()
-            try:
-                result = await conn.run(f'{data}', check=True)
-                await websocket.send_text(result.stdout)
-            except asyncssh.ProcessError as exc:
-                print(exc.stderr, end='')
-                print(f'Process exited with status {exc.exit_status}',
-                      file=sys.stderr)
-            else:
-                print(result.stdout, end='')
+        process = await conn.create_process(term_type="xterm-256color", term_size=(100,100))
+
+        async def websocket_to_ssh():
+            while True:
+                data = await websocket.receive_text()
+                process.stdin.write(data)
+
+        async def ssh_to_websocket():
+            while True:
+                output = await process.stdout.read(n=100)
+                if not output:
+                    break
+                await websocket.send_text(output)
+
+        await asyncio.gather(
+            websocket_to_ssh(),
+            ssh_to_websocket()
+        )
+
+
 
 # @app.post('/api/ssh')
 # async def run_client(host: str, username: str, client_keys: UploadFile = File(...)) -> str:

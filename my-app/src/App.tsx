@@ -150,25 +150,6 @@ const App: React.FC = () => {
   ] = useState<Instance | null>(null);
 
 
-  /*
-    We keep another reference to the currently
-    selected VM.
-
-    This avoids React closure problems where
-    xterm could remember an older state value
-    and display:
-
-        python@vm
-
-    instead of:
-
-        python@test1
-  */
-
-  const selectedSshInstanceRef =
-    useRef<Instance | null>(null);
-
-
   // ------------------------------------------------------------
   // XTERM REFS
   // ------------------------------------------------------------
@@ -189,21 +170,6 @@ const App: React.FC = () => {
 
   const wsRef =
     useRef<WebSocket | null>(null);
-
-
-  /*
-    Because your backend currently uses:
-
-        conn.run(command)
-
-    we still build the full command locally.
-
-    Later when we convert the backend to PTY,
-    this buffer will disappear.
-  */
-
-  const commandBufferRef =
-    useRef("");
 
 
   // ------------------------------------------------------------
@@ -331,7 +297,7 @@ const App: React.FC = () => {
 
 
     // ----------------------------------------------------------
-    // KEYBOARD INPUT
+    // RAW XTERM KEYBOARD INPUT -> WEBSOCKET
     // ----------------------------------------------------------
 
     const disposable =
@@ -340,129 +306,13 @@ const App: React.FC = () => {
         const socket =
           wsRef.current;
 
-
-        // ENTER
-        if (data === "\r") {
-
-          const command =
-            commandBufferRef.current;
-
-          terminal.write(
-            "\r\n"
-          );
-
-          commandBufferRef.current =
-            "";
-
-
-          if (
-            !socket ||
-            socket.readyState !==
-              WebSocket.OPEN
-          ) {
-
-            terminal.writeln(
-              "SSH is not connected."
-            );
-
-            writePrompt();
-
-            return;
-          }
-
-
-          if (
-            !command.trim()
-          ) {
-
-            writePrompt();
-
-            return;
-          }
-
-
-          socket.send(
-            command
-          );
-
-          return;
-        }
-
-
-        // ------------------------------------------------------
-        // BACKSPACE
-        // ------------------------------------------------------
-
         if (
-          data === "\u007F"
+          socket &&
+          socket.readyState ===
+            WebSocket.OPEN
         ) {
-
-          if (
-            commandBufferRef
-              .current.length > 0
-          ) {
-
-            commandBufferRef.current =
-              commandBufferRef.current.slice(
-                0,
-                -1
-              );
-
-            terminal.write(
-              "\b \b"
-            );
-          }
-
-          return;
+          socket.send(data);
         }
-
-
-        // ------------------------------------------------------
-        // CTRL + C
-        // ------------------------------------------------------
-
-        if (
-          data === "\u0003"
-        ) {
-
-          commandBufferRef.current =
-            "";
-
-          terminal.write(
-            "^C\r\n"
-          );
-
-          writePrompt();
-
-          return;
-        }
-
-
-        /*
-          Ignore escape sequences for now.
-
-          Arrow keys, vim, nano, top, etc.
-          will work after the backend becomes
-          a real PTY.
-        */
-
-        if (
-          data.startsWith(
-            "\u001b"
-          )
-        ) {
-          return;
-        }
-
-
-        // Normal characters
-
-        commandBufferRef.current +=
-          data;
-
-        terminal.write(
-          data
-        );
 
       });
 
@@ -519,41 +369,6 @@ const App: React.FC = () => {
     };
 
   }, [loggedIn]);
-
-
-  // ============================================================
-  // TERMINAL PROMPT
-  // ============================================================
-
-  const writePrompt = () => {
-
-    const terminal =
-      terminalRef.current;
-
-    if (!terminal) {
-      return;
-    }
-
-
-    const instance =
-      selectedSshInstanceRef.current;
-
-
-    if (instance) {
-
-      terminal.write(
-        `python@${instance.name}:~$ `
-      );
-
-    } else {
-
-      terminal.write(
-        "python@vm:~$ "
-      );
-
-    }
-
-  };
 
 
   // ============================================================
@@ -1427,10 +1242,6 @@ const App: React.FC = () => {
         instance;
 
 
-      selectedSshInstanceRef.current =
-        instance;
-
-
       setSelectedSshInstance(
         instance
       );
@@ -1535,17 +1346,9 @@ const App: React.FC = () => {
       }
 
 
-      selectedSshInstanceRef.current =
-        instance;
-
-
       setSelectedSshInstance(
         instance
       );
-
-
-      commandBufferRef.current =
-        "";
 
 
       terminal.clear();
@@ -1619,50 +1422,21 @@ const App: React.FC = () => {
 
           terminal.writeln("");
 
-          writePrompt();
-
         };
 
 
       // --------------------------------------------------------
-      // SSH COMMAND OUTPUT
+      // RAW SSH OUTPUT -> XTERM
       // --------------------------------------------------------
 
       socket.onmessage =
         (event) => {
 
-          const output =
+          terminal.write(
             String(
               event.data
-            );
-
-
-          if (output) {
-
-            terminal.write(
-              output.replace(
-                /\r?\n/g,
-                "\r\n"
-              )
-            );
-
-
-            if (
-              !output.endsWith(
-                "\n"
-              )
-            ) {
-
-              terminal.write(
-                "\r\n"
-              );
-
-            }
-
-          }
-
-
-          writePrompt();
+            )
+          );
 
         };
 
@@ -1745,10 +1519,6 @@ const App: React.FC = () => {
           null;
 
       }
-
-
-      commandBufferRef.current =
-        "";
 
 
       setWsStatus(
