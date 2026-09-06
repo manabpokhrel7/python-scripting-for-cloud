@@ -11,10 +11,10 @@ import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
 
-// const API_BASE = "/api"; // Kubernetes
+const API_BASE = "/api"; // Kubernetes
 // const API_BASE = "https://cloud.manabpokhrel.com.np/api";
 
-const API_BASE = "http://localhost:8000/api";
+// const API_BASE = "http://localhost:8000/api";
 
 
 const IMAGE_PROJECTS = [
@@ -30,6 +30,86 @@ const IMAGE_PROJECTS = [
   "oracle-linux-cloud",
   "centos-cloud",
 ];
+
+
+const IMAGE_FAMILIES: Record<string, string[]> = {
+  "debian-cloud": [
+    "debian-13",
+    "debian-12",
+  ],
+
+  "ubuntu-os-cloud": [
+    "ubuntu-2604-lts-amd64",
+    "ubuntu-2404-lts-amd64",
+    "ubuntu-2204-lts",
+  ],
+
+  "rocky-linux-cloud": [
+    "rocky-linux-10",
+    "rocky-linux-10-optimized-gcp",
+    "rocky-linux-9",
+    "rocky-linux-9-optimized-gcp",
+    "rocky-linux-8",
+    "rocky-linux-8-optimized-gcp",
+  ],
+
+  "rhel-cloud": [
+    "rhel-10",
+    "rhel-10-lvm",
+    "rhel-9",
+    "rhel-9-lvm",
+    "rhel-8",
+    "rhel-8-lvm",
+  ],
+
+  "suse-cloud": [
+    "sles-16-0-x86-64",
+    "sles-15",
+  ],
+
+  "windows-cloud": [
+    "windows-2025",
+    "windows-2025-core",
+    "windows-2022",
+    "windows-2022-core",
+    "windows-2019",
+    "windows-2019-core",
+    "windows-2016",
+    "windows-2016-core",
+  ],
+
+  "cos-cloud": [
+    "cos-stable",
+    "cos-beta",
+    "cos-dev",
+    "cos-129-lts",
+    "cos-125-lts",
+    "cos-121-lts",
+    "cos-117-lts",
+  ],
+
+  "fedora-coreos-cloud": [
+    "fedora-coreos-stable",
+    "fedora-coreos-testing",
+    "fedora-coreos-next",
+  ],
+
+  "opensuse-cloud": [
+    "opensuse-leap-15-6",
+    "opensuse-leap-15-5",
+  ],
+
+  "oracle-linux-cloud": [
+    "oracle-linux-10",
+    "oracle-linux-9",
+    "oracle-linux-8",
+  ],
+
+  "centos-cloud": [
+    "centos-stream-10",
+    "centos-stream-9",
+  ],
+};
 
 
 interface FormData {
@@ -75,10 +155,10 @@ const App: React.FC = () => {
       project_id: "",
       zone: "",
       instance_name: "",
-      machine_type: "",
+      machine_type: "n2-standard-2",
       image_project: "debian-cloud",
       image_family: "debian-12",
-      disk_type: "",
+      disk_type: "pd-standard",
       disk_size_gb: 20,
     });
 
@@ -684,9 +764,11 @@ const App: React.FC = () => {
 
         zone: "",
 
-        machine_type: "",
+        machine_type:
+          "n2-standard-2",
 
-        disk_type: "",
+        disk_type:
+          "pd-standard",
       }));
 
 
@@ -714,7 +796,8 @@ const App: React.FC = () => {
 
         zone: value,
 
-        disk_type: "",
+        disk_type:
+          "pd-standard",
       }));
 
 
@@ -722,6 +805,32 @@ const App: React.FC = () => {
         form.project_id,
         value
       );
+
+    }
+
+
+    // ----------------------------------------------------------
+    // IMAGE PROJECT CHANGED
+    // ----------------------------------------------------------
+
+    if (
+      name === "image_project"
+    ) {
+
+      const families =
+        IMAGE_FAMILIES[value] || [];
+
+      setForm((prev) => ({
+        ...prev,
+
+        image_project:
+          value,
+
+        image_family:
+          families.length > 0
+            ? families[0]
+            : "",
+      }));
 
     }
 
@@ -862,8 +971,6 @@ const App: React.FC = () => {
           instance_name: "",
         }));
 
-
-        // Automatically refresh instance list
 
         await fetchInstances();
 
@@ -1333,8 +1440,6 @@ const App: React.FC = () => {
       }
 
 
-      // Close previous WebSocket
-
       if (
         wsRef.current
       ) {
@@ -1384,10 +1489,6 @@ const App: React.FC = () => {
         socket;
 
 
-      // --------------------------------------------------------
-      // WEBSOCKET CONNECTED
-      // --------------------------------------------------------
-
       socket.onopen =
         () => {
 
@@ -1425,10 +1526,6 @@ const App: React.FC = () => {
         };
 
 
-      // --------------------------------------------------------
-      // RAW SSH OUTPUT -> XTERM
-      // --------------------------------------------------------
-
       socket.onmessage =
         (event) => {
 
@@ -1440,10 +1537,6 @@ const App: React.FC = () => {
 
         };
 
-
-      // --------------------------------------------------------
-      // ERROR
-      // --------------------------------------------------------
 
       socket.onerror =
         () => {
@@ -1464,10 +1557,6 @@ const App: React.FC = () => {
 
         };
 
-
-      // --------------------------------------------------------
-      // CLOSED
-      // --------------------------------------------------------
 
       socket.onclose =
         () => {
@@ -1602,10 +1691,6 @@ const App: React.FC = () => {
     <div className="app-shell">
 
 
-      {/* ======================================================
-          HIDDEN PRIVATE KEY INPUT
-      ====================================================== */}
-
       <input
         ref={
           privateKeyInputRef
@@ -1620,10 +1705,6 @@ const App: React.FC = () => {
         }}
       />
 
-
-      {/* ======================================================
-          TOP BAR
-      ====================================================== */}
 
       <header className="topbar">
 
@@ -1675,23 +1756,11 @@ const App: React.FC = () => {
       </header>
 
 
-      {/* ======================================================
-          MAIN DASHBOARD
-      ====================================================== */}
-
       <main className="dashboard">
 
 
-        {/* ====================================================
-            LEFT SIDE
-        ==================================================== */}
-
         <aside className="left-panel">
 
-
-          {/* ==================================================
-              CREATE VM
-          ================================================== */}
 
           <section className="dashboard-card create-vm-card">
 
@@ -1719,8 +1788,6 @@ const App: React.FC = () => {
               }
             >
 
-
-              {/* PROJECT + ZONE */}
 
               <div className="form-grid">
 
@@ -1815,8 +1882,6 @@ const App: React.FC = () => {
               </div>
 
 
-              {/* NAME */}
-
               <div className="form-field">
 
                 <label>
@@ -1837,8 +1902,6 @@ const App: React.FC = () => {
 
               </div>
 
-
-              {/* MACHINE + DISK */}
 
               <div className="form-grid">
 
@@ -1945,8 +2008,6 @@ const App: React.FC = () => {
               </div>
 
 
-              {/* IMAGE */}
-
               <div className="form-grid">
 
                 <div className="form-field">
@@ -1963,6 +2024,7 @@ const App: React.FC = () => {
                     onChange={
                       handleChange
                     }
+                    required
                   >
 
                     {IMAGE_PROJECTS.map(
@@ -1993,7 +2055,7 @@ const App: React.FC = () => {
                     Family
                   </label>
 
-                  <input
+                  <select
                     name="image_family"
                     value={
                       form.image_family
@@ -2001,15 +2063,34 @@ const App: React.FC = () => {
                     onChange={
                       handleChange
                     }
-                    placeholder="debian-12"
-                  />
+                    required
+                  >
+
+                    {(IMAGE_FAMILIES[
+                      form.image_project
+                    ] || []).map(
+                      (family) => (
+
+                        <option
+                          key={
+                            family
+                          }
+                          value={
+                            family
+                          }
+                        >
+                          {family}
+                        </option>
+
+                      )
+                    )}
+
+                  </select>
 
                 </div>
 
               </div>
 
-
-              {/* DISK SIZE */}
 
               <div className="form-field">
 
@@ -2058,10 +2139,6 @@ const App: React.FC = () => {
 
           </section>
 
-
-          {/* ==================================================
-              INSTANCE LIST
-          ================================================== */}
 
           <section className="dashboard-card instances-card">
 
@@ -2145,7 +2222,7 @@ const App: React.FC = () => {
                           }`}
                         />
 
-                        <strong>
+                        <strong className="instance-name">
                           {instance.name}
                         </strong>
 
@@ -2223,10 +2300,6 @@ const App: React.FC = () => {
           </section>
 
 
-          {/* ==================================================
-              STATUS MESSAGE
-          ================================================== */}
-
           {message && (
 
             <div className="status-message">
@@ -2239,10 +2312,6 @@ const App: React.FC = () => {
 
         </aside>
 
-
-        {/* ====================================================
-            TERMINAL SIDE
-        ==================================================== */}
 
         <section className="terminal-panel">
 
@@ -2337,10 +2406,6 @@ const App: React.FC = () => {
 
       </main>
 
-
-      {/* ======================================================
-          FLOATING AI CHAT
-      ====================================================== */}
 
       {aiOpen && (
 
@@ -2496,10 +2561,6 @@ const App: React.FC = () => {
 
       )}
 
-
-      {/* ======================================================
-          FLOATING AI BUTTON
-      ====================================================== */}
 
       {!aiOpen && (
 

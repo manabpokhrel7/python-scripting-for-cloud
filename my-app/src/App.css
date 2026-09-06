@@ -97,7 +97,6 @@ body {
 
 .login-panel h1 {
   margin: 0;
-
   font-size: 28px;
 }
 
@@ -144,7 +143,6 @@ body {
 .brand {
   display: flex;
   align-items: center;
-
   gap: 11px;
 }
 
@@ -325,6 +323,8 @@ body {
   box-shadow:
     0 2px 8px
     rgba(31, 42, 62, 0.035);
+
+  color: #18202b;
 }
 
 
@@ -352,6 +352,8 @@ body {
   font-size: 15px;
 
   font-weight: 700;
+
+  color: #18202b;
 }
 
 
@@ -562,6 +564,8 @@ body {
   padding: 14px;
 
   min-height: 160px;
+
+  color: #18202b;
 }
 
 
@@ -607,6 +611,8 @@ body {
   padding: 9px 10px;
 
   background: #fafbfc;
+
+  color: #18202b;
 }
 
 
@@ -621,6 +627,8 @@ body {
   min-width: 0;
 
   flex: 1;
+
+  color: #18202b;
 }
 
 
@@ -629,11 +637,28 @@ body {
   align-items: center;
 
   gap: 7px;
+
+  color: #18202b;
 }
 
 
 .instance-title-row strong {
   font-size: 12px;
+
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  color: #18202b;
+}
+
+
+.instance-name {
+  color: #18202b !important;
+
+  font-size: 12px;
+
+  font-weight: 700;
 
   overflow: hidden;
   white-space: nowrap;
@@ -683,6 +708,8 @@ body {
   text-overflow: ellipsis;
 
   white-space: nowrap;
+
+  color: #667080;
 }
 
 
@@ -1204,6 +1231,8 @@ body {
   display: block;
 
   font-size: 13px;
+
+  color: #18202b;
 }
 
 
@@ -1403,6 +1432,8 @@ body {
     1px solid #dfe3e9;
 
   background: #f7f8fa;
+
+  color: #18202b;
 
   outline: none;
 

@@ -9,11 +9,11 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     #Database values and settings for local
-    DB_HOST: str = Field(default="localhost")
-    DB_USER: str = Field(default="manab")
-    DB_PORT: int = Field(default=5432)
-    DB_PASS: str = Field(default="strongpass")
-    DB_NAME: str = Field(default="mydb")
+    # DB_HOST: str = Field(default="localhost")
+    # DB_USER: str = Field(default="manab")
+    # DB_PORT: int = Field(default=5432)
+    # DB_PASS: str = Field(default="strongpass")
+    # DB_NAME: str = Field(default="mydb")
 
     #Below is for CloudRun
     # DB_HOST: str
@@ -23,15 +23,15 @@ class Settings(BaseSettings):
     # DB_PORT: int = 5432  # optional default
     # CLOUD_SQL_INSTANCE: str
     # #Redis config
-    REDIS_HOST: str = Field(default="redis") #if you are running python from inside container and you wanna access it to outside container redis then you use the container name especially in docker compose because if you use localhost:6379 from isnide python container than localhpost there isnt redis
-    REDIS_PORT: int = Field(default=6379)
+    # REDIS_HOST: str = Field(default="redis") #if you are running python from inside container and you wanna access it to outside container redis then you use the container name especially in docker compose because if you use localhost:6379 from isnide python container than localhpost there isnt redis
+    # REDIS_PORT: int = Field(default=6379)
 
     # #For my self hosted kubernetes
-    # DB_HOST: str
-    # DB_USER: str
-    # DB_PASS: str
-    # DB_NAME: str
-    # DB_PORT: int = 5432  # optional default
+    DB_HOST: str
+    DB_USER: str
+    DB_PASS: str
+    DB_NAME: str
+    DB_PORT: int = 5432  # optional default
 
     # Environment settings/non Technical just to define the environment
     ENV: str = Field(default="local")  # local, dev, staging, prod
