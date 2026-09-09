@@ -64,30 +64,30 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    connection_info = await websocket.receive_json() #Recieving in json format from frontend
+    await websocket.accept() # Creating a websocket connection from frontend
+    connection_info = await websocket.receive_json() #Recieving in json format connection credentials from frontend
     private_key = asyncssh.import_private_key(
         connection_info["client_keys"]
     ) #client_keys below will only accept file so we have to do this or it will think the entire string is filename
-    async with asyncssh.connect(connection_info["host"], username=connection_info["username"], client_keys=[private_key], known_hosts=None) as conn:
-        process = await conn.create_process(term_type="xterm-256color", term_size=(100,100))
+    async with asyncssh.connect(connection_info["host"], username=connection_info["username"], client_keys=[private_key], known_hosts=None) as conn: # Using asyncssh connect function and passing the params from the credentials JSON we recieved from above
+        process = await conn.create_process(term_type="xterm-256color", term_size=(100,100)) # Creating a ssh process with these specs
 
-        async def websocket_to_ssh():
+        async def websocket_to_ssh(): # Creating a function to write to the ssh terminal
             while True:
-                data = await websocket.receive_text()
-                process.stdin.write(data)
+                data = await websocket.receive_text() # Receving typed text from frontend through websocket
+                process.stdin.write(data) # This stdin is a method which is the input for the process
 
-        async def ssh_to_websocket():
+        async def ssh_to_websocket(): # Function to get the output
             while True:
-                output = await process.stdout.read(n=100)
-                if not output:
+                output = await process.stdout.read(n=100) # we extract the output from the process using stdout
+                if not output: # Output is ran till EOF even if its blank so we do this to break the loop
                     break
-                await websocket.send_text(output)
+                await websocket.send_text(output) # Sending the output from the process to the websocket to the frontend
 
         await asyncio.gather(
             websocket_to_ssh(),
             ssh_to_websocket()
-        )
+        ) # Running both of the input and output simultaneously using gather method since we need constant output and input for a terminal
 
 
 
@@ -173,7 +173,7 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db)):
     await store_token(usertoken, refreshtoken, sub, db)
     if usertoken:
         request.session['sub'] = sub #We temporarily store this in our session middleware and it sends us cookie to our browser
-    return RedirectResponse(url='https://kubernetes.manabpokhrel.com.np/')
+    return RedirectResponse(url='https://kubernetes.manabpokhrel.com.np')
 
 @app.get('/api/logout')
 async def logout(request: Request, db: AsyncSession = Depends(get_db)):
@@ -182,7 +182,7 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     await delete_token(sub, db)
     request.session.pop('sub', None) #This sends a HTTP requests back to the client browser to unset the cookie
     request.session.clear()
-    return RedirectResponse(url='https://kubernetes.manabpokhrel.com.np/')
+    return RedirectResponse(url='https://kubernetes.manabpokhrel.com.np')
 
 
 @app.get("/api/check_login")
