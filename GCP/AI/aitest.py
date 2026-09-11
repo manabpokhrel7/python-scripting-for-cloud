@@ -15,7 +15,7 @@ class AIRequest(BaseModel):
     input_text: str
 
 
-client = AsyncClient(host='https://ollama.manabpokhrel.com.np')
+client = AsyncClient(host='http://ollama.ollama.svc.cluster.local:11434')
 
 
 @router.post("/response")
