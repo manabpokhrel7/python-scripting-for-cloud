@@ -11,10 +11,10 @@ import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
 
-// const API_BASE = "/api"; // Kubernetes
+const API_BASE = "/api"; // Kubernetes
 // const API_BASE = "https://cloud.manabpokhrel.com.np/api";
 
-const API_BASE = "http://localhost:8000/api";
+// const API_BASE = "http://localhost:8000/api";
 
 
 const IMAGE_PROJECTS = [
