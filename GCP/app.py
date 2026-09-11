@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, UploadFile, File
 from legacyAuth.auth import router as auth
 from methods.cloudRoutes import router as cloud
-from AI.aitestbak import router as ai
+from AI.aitest import router as ai
 from fastapi.middleware.cors import CORSMiddleware
 from database.database import engine, get_db
 from database.models import Base
