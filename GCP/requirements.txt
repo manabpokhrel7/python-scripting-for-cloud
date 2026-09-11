@@ -34,3 +34,5 @@ scikit-learn
 cryptography
 websockets
 asyncssh
+ollama
+AsyncClient
