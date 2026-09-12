@@ -34,7 +34,7 @@ async def response(payload: AIRequest, request: Request):
             },
         ]
         input_list.extend(user_input)
-        result = await client.chat('qwen3:4b', messages=input_list)
+        result = await client.chat('dolphin-mistral', messages=input_list)
         output_text = [{"role": "assistant", "content": result.message.content}]
         input_list.extend(output_text)
         # Trimming the input list before saving
