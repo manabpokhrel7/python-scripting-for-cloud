@@ -1,5 +1,6 @@
 #we are using sql alchemy to create the database instead of writing the RAW sql
 from sqlalchemy import String, ForeignKey
+from pgvector.sqlalchemy import VECTOR
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -27,3 +28,9 @@ class Cloud(Base):
     access_token: Mapped[str] = mapped_column(unique=True, index=True)
     refresh_token: Mapped[str] = mapped_column(unique=True, index=True)
     sub: Mapped[str] = mapped_column(unique=True, index=True)
+
+class Vector(Base):
+    __tablename__ = "documents"  #tablename is a special keyword in sqlalchemy used to define the table name
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    content: Mapped[str] = mapped_column(unique=True, index=True)
+    vector: Mapped[list[float]] = mapped_column(VECTOR(1024))

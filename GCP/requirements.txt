@@ -36,3 +36,5 @@ websockets
 asyncssh
 ollama
 AsyncClient
+numpy
+pgvector
