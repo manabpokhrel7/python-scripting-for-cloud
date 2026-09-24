@@ -1,4 +1,4 @@
-from database.models import Auth, Items, Cloud
+from database.models import Auth, Items, Cloud, Vector
 from sqlalchemy import select, delete
 from JWT.hash import verify_password, get_password_hash
 from sqlalchemy.exc import DBAPIError
@@ -98,7 +98,35 @@ async def health_check(db: AsyncSession):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def vector_db(content: str, vector: list[float], source: str, chunk_index: int,  db: AsyncSession):
+    existing_record = await db.scalar(select(Vector).where(Vector.content == content))
+    if existing_record:
+        return "The records already exists skipping"
+    else:
+        try:
+            new_content = Vector(
+                content=content,
+                vector=vector,
+                source=source,
+                chunk_index=chunk_index
+            )
+            db.add(new_content)
+            await db.commit()
+            await db.refresh(new_content)  # Reload from DB to get ID
+            return new_content
+        except DBAPIError as e:
+            await db.rollback()
+            print(f"Skipping row due to error: {e}")
+            return f"{e}"
 
+
+async def return_vector(vector_new: list[float], db: AsyncSession):
+    try:
+        items_list = select(Vector).order_by(Vector.vector.cosine_distance(vector_new)).limit(3)
+        final_items = await db.execute(items_list)
+        return final_items.scalars().all()
+    except ValidationError as e:
+        print({e})
 
 
 

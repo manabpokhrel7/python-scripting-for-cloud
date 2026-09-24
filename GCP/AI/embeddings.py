@@ -1,49 +1,39 @@
 import ollama
-import numpy as np
-input_list = ["My Kubernetes applications store persistent data using Ceph.", "Rook Ceph provides persistent storage for my Kubernetes cluster", "my dog is a cat"]
-single = ollama.embed(
-  model='qwen3-embedding:0.6b',
-  input=input_list
-)
-a = single['embeddings'][0]
-b = single['embeddings'][1]
-c = single['embeddings'][2]
-# calculating cosine
+from database.crud import vector_db, return_vector
+from sqlalchemy.ext.asyncio import AsyncSession
+from rag.ingestion.ingest import chunks_data
+from database.models  import Vector
+from database.database import get_db
+from sqlalchemy import select
+from fastapi import APIRouter, Depends
 
-def cosine_similarity(first:list , second:list):
-  A = first
-  B = second
+router = APIRouter(tags=["embed"])
 
 
-  dot_product = np.dot(A, B)
+async def document_embedder(db: AsyncSession):
+    document_input = chunks_data()
+    for i in document_input:
+        content = i["content"]
+        source = i["source"]
+        chunk_index = i["chunk_index"]
+        if await db.scalar(select(Vector).where(Vector.content == content)):
+            continue # This skips everything in this iteration
+        single = ollama.embed(
+              model='qwen3-embedding:0.6b',
+              input=content
+            )
+        await vector_db(content, single["embeddings"][0], source, chunk_index, db)
 
-  magnitude_A = np.linalg.norm(A)
-  magnitude_B = np.linalg.norm(B)
 
-  result_similarity = dot_product / (magnitude_A * magnitude_B)
-  return result_similarity
+async def rag_retrival(raginput: str, db: AsyncSession):
+    test_vector = ollama.embed(
+                  model='qwen3-embedding:0.6b',
+                  input=raginput
+                )
+    returneditem = await return_vector(test_vector["embeddings"][0], db)
+    returneditemlist = []
+    for i in returneditem:
+        returneditemlist.append(i.content)
+    finalrag = "\n\n".join(returneditemlist)
+    return finalrag
 
-
-ab = cosine_similarity(a, b)
-bc = cosine_similarity(b, c)
-ac = cosine_similarity(a, c)
-# Group them into a dictionary
-similarities = {
-    'Pair A-B': ab,
-    'Pair B-C': bc,
-    'Pair A-C': ac
-}
-
-best_pair = max(similarities, key=similarities.get)
-print(f"The highest similarity is {best_pair} with a score of {similarities[best_pair]}")
-print(len(single['embeddings'][0]))
-#
-# if ab > bc:
-#   if ab > ac:
-#     print(f" the highest similarity is a and b")
-#   else:
-#     print("The highest similarity is a and c")
-# elif bc> ac:
-#   print("The highest similarity is b and c")
-# else:
-#   print(" The highest similarity is a and c")

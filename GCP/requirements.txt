@@ -38,3 +38,4 @@ ollama
 AsyncClient
 numpy
 pgvector
+pathlib

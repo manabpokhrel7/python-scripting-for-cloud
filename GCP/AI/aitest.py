@@ -1,13 +1,17 @@
 import asyncio
 from ollama import AsyncClient
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from openai import AsyncOpenAI
 import os
 from cache.redis import r
 from starlette.requests import Request
 from logger import logger
+from AI.embeddings import rag_retrival
+from sqlalchemy.ext.asyncio import AsyncSession
+from database.database import get_db
+
 
 router = APIRouter(tags=["ai"])
 
@@ -19,12 +23,12 @@ client = AsyncClient(host='http://ollama.ollama.svc.cluster.local:11434')
 
 
 @router.post("/response")
-async def response(payload: AIRequest, request: Request):
+async def response(payload: AIRequest, request: Request, db: AsyncSession = Depends(get_db)):
     try:
         previous_convo = r.get(request.session.get('sub'))
         print(f"\n\nthis is the previous convo {previous_convo}")
         input_list = [{"role": "system",
-                       "content": "This is a cloud platform designed to create VMS in GCP only using the API Manab Designed"}]
+                       "content": "You are an assistant for Manab's GCP cloud platform. Answer questions about the platform using the provided context. If the context doesn't contain the answer, say that you don't have enough information rather than inventing platform details."}]
         if previous_convo:
             input_list.extend(json.loads(previous_convo))
         user_input = [
@@ -34,7 +38,12 @@ async def response(payload: AIRequest, request: Request):
             },
         ]
         input_list.extend(user_input)
-        result = await client.chat('llama3.1', messages=input_list)
+        rag_context = await rag_retrival(payload.input_text, db)
+        rag_input = {'role': 'system', 'content': rag_context}
+        new_list = []
+        new_list.extend(input_list)
+        new_list.insert(1, rag_input)
+        result = await client.chat('llama3.1', messages=new_list)
         output_text = [{"role": "assistant", "content": result.message.content}]
         input_list.extend(output_text)
         # Trimming the input list before saving

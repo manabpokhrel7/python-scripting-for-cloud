@@ -32,5 +32,7 @@ class Cloud(Base):
 class Vector(Base):
     __tablename__ = "documents"  #tablename is a special keyword in sqlalchemy used to define the table name
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    content: Mapped[str] = mapped_column(unique=True, index=True)
+    content: Mapped[str] = mapped_column()
     vector: Mapped[list[float]] = mapped_column(VECTOR(1024))
+    source: Mapped[str] = mapped_column()
+    chunk_index: Mapped[int] = mapped_column()

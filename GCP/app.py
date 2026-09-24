@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, WebSocket, UploadFile, File
 from legacyAuth.auth import router as auth
 from methods.cloudRoutes import router as cloud
 from AI.aitest import router as ai
+from AI.embeddings import router as embed
 from fastapi.middleware.cors import CORSMiddleware
 from database.database import engine, get_db
 from database.models import Base
@@ -14,12 +15,16 @@ from starlette.responses import HTMLResponse, RedirectResponse
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from database.crud import store_token, delete_token, get_token, health_check
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 from oauth import oauth
 import os
+from AI.embeddings import rag_retrival
 from dotenv import load_dotenv
 from cache.redis import r
 from prometheus_fastapi_instrumentator import Instrumentator
 import asyncio, asyncssh, sys
+from AI.embeddings import document_embedder
+from database.database import get_db, engine, Session
 
 
 load_dotenv()
@@ -36,7 +41,10 @@ app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True
 @app.on_event("startup")
 async def startup_event():
     async with engine.begin() as conn:
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
         await conn.run_sync(Base.metadata.create_all)
+    async with Session() as session:
+        await document_embedder(session)
 
 #Auth Logic with Google
 config = Config('.env')
@@ -58,6 +66,7 @@ oauth.register(
 app.include_router(auth, prefix="/api")
 app.include_router(cloud, prefix="/api/cloud")
 app.include_router(ai, prefix="/api/ai")
+app.include_router(embed, prefix="/api/embed")
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
@@ -105,6 +114,11 @@ async def websocket_endpoint(websocket: WebSocket):
 #         else:
 #             print(result.stdout, end='')
 
+
+
+@app.get('/api/ollama')
+async def testai(db: AsyncSession = Depends(get_db)):
+    return await test_ai(db)
 
 
 @app.get('/api/health')
