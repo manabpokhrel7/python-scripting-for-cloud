@@ -42,7 +42,18 @@ app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True
 async def startup_event():
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+
+        # TEMPORARY: drop only the RAG documents table
+        await conn.run_sync(
+            lambda sync_conn: Vector.__table__.drop(
+                sync_conn,
+                checkfirst=True
+            )
+        )
+
+        # Recreate tables using current SQLAlchemy models
         await conn.run_sync(Base.metadata.create_all)
+
     async with Session() as session:
         await document_embedder(session)
 
