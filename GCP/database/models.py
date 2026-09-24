@@ -36,3 +36,12 @@ class Vector(Base):
     vector: Mapped[list[float]] = mapped_column(VECTOR(1024))
     source: Mapped[str] = mapped_column()
     chunk_index: Mapped[int] = mapped_column()
+
+
+class Documenthash(Base):
+    __tablename__ = "documenthash"
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    source: Mapped[str] = mapped_column()
+    documenthash: Mapped[str] = mapped_column(String(64), index=True)
+
+

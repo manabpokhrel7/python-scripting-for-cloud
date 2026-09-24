@@ -1,4 +1,4 @@
-from database.models import Auth, Items, Cloud, Vector
+from database.models import Auth, Items, Cloud, Vector, Documenthash
 from sqlalchemy import select, delete
 from JWT.hash import verify_password, get_password_hash
 from sqlalchemy.exc import DBAPIError
@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import ValidationError
 from logger import logger
 from fastapi import HTTPException
+from AI.documenthash import documents_hash_generator
 
 
 
@@ -129,6 +130,44 @@ async def return_vector(vector_new: list[float], db: AsyncSession):
         print({e})
 
 
+# Document Hash insert from generator
+async def hash_insert(source: str, value: str, db: AsyncSession):
+    try:
+        new_item = Documenthash(
+            documenthash=value,
+            source=source
+        )
+        db.add(new_item)
+        await db.commit()
+        await db.refresh(new_item)  # Reload from DB to get ID
+
+        return new_item
+    except DBAPIError as e:
+        await db.rollback()
+        print(f"Skipping row due to error: {e}")
+        return e
+
+
+async def list_hash(source: str, db: AsyncSession):
+    try:
+        items_list = select(Documenthash).where(Documenthash.source == source)
+        final_items = await db.execute(items_list)
+        return final_items.scalars().all()
+    except DBAPIError as e:
+        await db.rollback()
+        print(f"Skipping row due to error: {e}")
+        return e
+
+
+async def list_all_hash(db: AsyncSession):
+    try:
+        items_list = select(Documenthash)
+        final_items = await db.execute(items_list)
+        return final_items.scalars().all()
+    except DBAPIError as e:
+        await db.rollback()
+        print(f"Skipping row due to error: {e}")
+        return e
 
 
 

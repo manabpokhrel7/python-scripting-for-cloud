@@ -81,6 +81,4 @@ def chunks_data():
     return chunks
 
 
-data = chunks_data()
-for i in data:
-    print(i["source"])
+

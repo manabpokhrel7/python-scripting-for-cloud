@@ -24,7 +24,10 @@ from cache.redis import r
 from prometheus_fastapi_instrumentator import Instrumentator
 import asyncio, asyncssh, sys
 from AI.embeddings import document_embedder
+from AI.documenthash import documents_hash_generator
 from database.database import get_db, engine, Session
+import io, hashlib, hmac
+from database.crud import list_hash, hash_insert, list_all_hash
 
 
 load_dotenv()
@@ -40,15 +43,12 @@ app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True
 
 @app.on_event("startup")
 async def startup_event():
-
     # 1. Database/schema initialization
     async with engine.begin() as conn:
-
         # pgvector
         await conn.execute(
             text("CREATE EXTENSION IF NOT EXISTS vector;")
         )
-
         # Create tables that don't exist
         await conn.run_sync(Base.metadata.create_all)
 
@@ -59,17 +59,64 @@ async def startup_event():
                 ADD COLUMN IF NOT EXISTS source VARCHAR;
             """)
         )
-
         await conn.execute(
             text("""
                 ALTER TABLE documents
                 ADD COLUMN IF NOT EXISTS chunk_index INTEGER;
             """)
         )
-
+        await conn.execute(
+            text("""
+                        ALTER TABLE documenthash
+                        ADD COLUMN IF NOT EXISTS source VARCHAR;
+                    """)
+        )
+        # await conn.execute(
+        #     text("""
+        #                         DROP TABLE documenthash;
+        #                     """)
+        # )
     # 2. RAG ingestion
     async with Session() as session:
-        await document_embedder(session)
+        current_hashes = documents_hash_generator()
+        stored_hash_rows = await list_all_hash(session)
+
+        stored_hashes = {}
+
+        for i in stored_hash_rows:
+            stored_hashes[i.source] = i.documenthash
+
+        if current_hashes != stored_hashes:
+            await session.execute(text("TRUNCATE TABLE documents;"))
+            await session.execute(text("TRUNCATE TABLE documenthash;"))
+            await session.commit()
+
+            await document_embedder(session)
+
+            for i in current_hashes:
+                await hash_insert(i, current_hashes[i], session)
+
+
+
+
+        # for i in new_hash:
+        #     print(new_hash[i])  # This is new generated hash
+        #     print(i)  # This is the filename or source of hash
+        #     for y in await list_hash(i, session):
+        #         print(y.source)  # This is already present source
+        #         print(y.documenthash)  # this is already present hash
+        #         if new_hash[i] == y.documenthash:
+        #             continue
+        #         else:
+        #             async with engine.begin() as conn:
+        #                 await conn.execute(text("TRUNCATE TABLE documenthash;"))
+        #                 await hash_insert(i, new_hash[i], session)
+        #                 await conn.execute(text("TRUNCATE TABLE documents;"))
+        #                 await document_embedder(session)
+
+
+
+
 
 #Auth Logic with Google
 config = Config('.env')
