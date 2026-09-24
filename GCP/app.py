@@ -40,20 +40,34 @@ app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True
 
 @app.on_event("startup")
 async def startup_event():
-    async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
 
-        # TEMPORARY: drop only the RAG documents table
-        await conn.run_sync(
-            lambda sync_conn: Vector.__table__.drop(
-                sync_conn,
-                checkfirst=True
-            )
+    # 1. Database/schema initialization
+    async with engine.begin() as conn:
+
+        # pgvector
+        await conn.execute(
+            text("CREATE EXTENSION IF NOT EXISTS vector;")
         )
 
-        # Recreate tables using current SQLAlchemy models
+        # Create tables that don't exist
         await conn.run_sync(Base.metadata.create_all)
 
+        # Add new RAG columns if this is an older documents table
+        await conn.execute(
+            text("""
+                ALTER TABLE documents
+                ADD COLUMN IF NOT EXISTS source VARCHAR;
+            """)
+        )
+
+        await conn.execute(
+            text("""
+                ALTER TABLE documents
+                ADD COLUMN IF NOT EXISTS chunk_index INTEGER;
+            """)
+        )
+
+    # 2. RAG ingestion
     async with Session() as session:
         await document_embedder(session)
 
