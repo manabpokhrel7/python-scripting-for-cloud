@@ -13,8 +13,12 @@ router = APIRouter(tags=["embed"])
 # Ollama is running in the "ollama" namespace.
 # Kubernetes DNS:
 # <service>.<namespace>.svc.cluster.local
+# client = AsyncClient(
+#     host="http://ollama.ollama.svc.cluster.local:11434"
+# )
+# For local
 client = AsyncClient(
-    host="http://ollama.ollama.svc.cluster.local:11434"
+    host="localhost"
 )
 
 

@@ -1,21 +1,45 @@
-# Monitoring and Observability
+# Monitoring & Observability
 
-Prometheus and Grafana provide monitoring for the Kubernetes platform.
+Core stack
+- Prometheus: metric collection and alerting.
+- Grafana: dashboards for cluster and application metrics.
+- Hubble: network flow observability (Cilium).
+- Kubernetes probes: liveness/readiness for container health.
 
-Prometheus collects metrics from Kubernetes and platform components.
+Recommended metrics to collect
+- Kubernetes cluster:
+  - kube-apiserver, scheduler, controller-manager latencies and error rates.
+  - Node CPU, memory, disk I/O, network I/O.
+- Ceph:
+  - OSD utilization, network throughput, recovery rate, PG health.
+- PostgreSQL:
+  - connections, replication lag, queries per second, cache hit ratio, slow queries, WAL stats.
+- AI workloads (Ollama/FastAPI):
+  - request rate, error rate, 95/99th percentile latency, model load/unload events, memory usage, CPU/GPU utilization.
+- RAG-specific:
+  - embedding latency, retrieval latency, average similarity score, retrieved-chunk count per query.
 
-Grafana is used to visualize metrics through dashboards.
+Dashboards & alerts
+- Create dashboards for:
+  - Cluster overview (node/Pod health, resource usage).
+  - Database dashboard (CloudNativePG metrics).
+  - Storage (Rook Ceph health).
+  - AI serving dashboard (inference latency, tokens/sec).
+- Alerts:
+  - Node disk pressure, Ceph degraded state, Postgres replication failure, high inference error rate, slow query spikes.
 
-Hubble provides network observability for Cilium.
+Instrumentation & tracing
+- Instrument FastAPI endpoints with metrics (Prometheus client) and add tracing (OpenTelemetry) for distributed traces.
+- Track RAG pipeline execution times (embedding creation, retrieval, generation).
 
-Kubernetes liveness probes are used to determine whether containers are healthy.
+Runbook examples
+- High inference latency:
+  - Check FastAPI & Ollama pod resource usage.
+  - Verify disk IO for model loads (if models are loaded from PVC).
+  - Check model concurrency limits and increase replicas if CPU/GPU limited.
+- Ceph degraded:
+  - kubectl -n rook-ceph get cephclusters
+  - Exec into toolbox and run `ceph -s` to inspect OSD/PG states.
 
-Kubernetes readiness probes determine whether containers are ready to receive traffic.
-
-The Ollama deployment exposes HTTP port 11434 and uses health probes against the Ollama HTTP server.
-
-Monitoring can later be extended for AI workloads.
-
-Useful AI serving metrics include inference latency, request rate, errors, CPU usage, GPU utilization, memory usage, model loading time, and tokens generated per second.
-
-RAG monitoring can additionally measure retrieval quality and whether relevant document chunks are being returned.
+Data retention & storage
+- Retain Prometheus metrics according to storage capacity; use remote_write if long-term storage needed.

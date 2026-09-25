@@ -9,11 +9,11 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     #Database values and settings for local
-    # DB_HOST: str = Field(default="localhost")
-    # DB_USER: str = Field(default="manab")
-    # DB_PORT: int = Field(default=5432)
-    # DB_PASS: str = Field(default="strongpass")
-    # DB_NAME: str = Field(default="mydb")
+    DB_HOST: str = Field(default="localhost")
+    DB_USER: str = Field(default="manab")
+    DB_PORT: int = Field(default=5432)
+    DB_PASS: str = Field(default="strongpass")
+    DB_NAME: str = Field(default="mydb")
 
     #Below is for CloudRun
     # DB_HOST: str
@@ -27,11 +27,11 @@ class Settings(BaseSettings):
     # REDIS_PORT: int = Field(default=6379)
 
     # #For my self hosted kubernetes
-    DB_HOST: str
-    DB_USER: str
-    DB_PASS: str
-    DB_NAME: str
-    DB_PORT: int = 5432  # optional default
+    # DB_HOST: str
+    # DB_USER: str
+    # DB_PASS: str
+    # DB_NAME: str
+    # DB_PORT: int = 5432  # optional default
 
     # Environment settings/non Technical just to define the environment
     ENV: str = Field(default="local")  # local, dev, staging, prod

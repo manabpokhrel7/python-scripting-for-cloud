@@ -18,8 +18,12 @@ router = APIRouter(tags=["ai"])
 class AIRequest(BaseModel):
     input_text: str
 
+# For Kubernetes
+# client = AsyncClient(host='http://ollama.ollama.svc.cluster.local:11434')
 
-client = AsyncClient(host='http://ollama.ollama.svc.cluster.local:11434')
+
+# For localhost
+client = AsyncClient(host='localhost')
 
 
 @router.post("/response")
