@@ -20,14 +20,15 @@ This repository contains:
 
 ```{=html}
 <p align="center">
-```
-`<img src="https://img.shields.io/badge/Kubernetes-Deployments-blue?style=for-the-badge&logo=kubernetes" alt="Kubernetes" />`{=html}
-`<img src="https://img.shields.io/badge/Terraform-Cloud%20Infra-7B42BC?style=for-the-badge&logo=terraform" alt="Terraform" />`{=html}
-`<img src="https://img.shields.io/badge/Ansible-Automation-EE0000?style=for-the-badge&logo=ansible" alt="Ansible" />`{=html}
-`<img src="https://img.shields.io/badge/Cilium-Networking-00A7FF?style=for-the-badge&logo=cilium" alt="Cilium" />`{=html}
-`<img src="https://img.shields.io/badge/GCP-Google%20Cloud-4285F4?style=for-the-badge&logo=google-cloud" alt="Google Cloud" />`{=html}
-```{=html}
+  <img alt="Kubernetes" src="https://img.shields.io/badge/Kubernetes-Deployments-blue?style=for-the-badge&logo=kubernetes" />
+  <img alt="Terraform" src="https://img.shields.io/badge/Terraform-Infra-7B42BC?style=for-the-badge&logo=terraform" />
+  <img alt="Ansible" src="https://img.shields.io/badge/Ansible-Automation-EE0000?style=for-the-badge&logo=ansible" />
+  <img alt="Cilium" src="https://img.shields.io/badge/Cilium-Networking-00A7FF?style=for-the-badge&logo=cilium" />
+  <img alt="GCP" src="https://img.shields.io/badge/GCP-GoogleCloud-4285F4?style=for-the-badge&logo=google-cloud" />
 </p>
+
+One-line: Infrastructure-as-code and automation to provision and bootstrap a self-managed Kubernetes cluster on Google Cloud (GCE) using Terraform, Ansible and kubeadm — integrated with Cilium networking, Rook Ceph storage, CloudNativePG, and GitOps (Argo CD).
+
 ```
 
 ------------------------------------------------------------------------
