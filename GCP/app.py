@@ -71,11 +71,7 @@ async def startup_event():
                         ADD COLUMN IF NOT EXISTS source VARCHAR;
                     """)
         )
-        # await conn.execute(
-        #     text("""
-        #                         DROP TABLE documenthash;
-        #                     """)
-        # )
+
     # 2. RAG ingestion
     async with Session() as session:
         current_hashes = documents_hash_generator()
@@ -87,8 +83,8 @@ async def startup_event():
             stored_hashes[i.source] = i.documenthash
 
         if current_hashes != stored_hashes:
-            await session.execute(text("TRUNCATE TABLE documents;"))
-            await session.execute(text("TRUNCATE TABLE documenthash;"))
+            await session.execute(text("TRUNCATE TABLE documents RESTART IDENTITY;"))
+            await session.execute(text("TRUNCATE TABLE documenthash RESTART IDENTITY;"))
             await session.commit()
 
             await document_embedder(session)
