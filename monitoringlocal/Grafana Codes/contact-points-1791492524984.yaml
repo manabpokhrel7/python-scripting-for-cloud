@@ -1,0 +1,10 @@
+apiVersion: 1
+contactPoints:
+    - orgId: 1
+      name: platform-slack-alerts
+      receivers:
+        - uid: bg0d0oppgni80d
+          type: slack
+          settings:
+            url: ${SLACK_WEBHOOK_URL}
+          disableResolveMessage: false

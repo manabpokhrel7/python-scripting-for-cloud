@@ -184,6 +184,12 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 
+@app.post('/api/test-error')
+async def testerror():
+    raise Exception("Simulated server failure!")
+
+
+
 @app.get('/api/ollama')
 async def testai(db: AsyncSession = Depends(get_db)):
     return await test_ai(db)
