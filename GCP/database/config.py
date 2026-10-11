@@ -9,7 +9,14 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     #Database values and settings for local
-    DB_HOST: str = Field(default="localhost")
+    # DB_HOST: str = Field(default="localhost")
+    # DB_USER: str = Field(default="manab")
+    # DB_PORT: int = Field(default=5432)
+    # DB_PASS: str = Field(default="strongpass")
+    # DB_NAME: str = Field(default="mydb")
+
+    # For docker compose
+    DB_HOST: str = Field(default="database")
     DB_USER: str = Field(default="manab")
     DB_PORT: int = Field(default=5432)
     DB_PASS: str = Field(default="strongpass")

@@ -17,8 +17,12 @@ router = APIRouter(tags=["embed"])
 #     host="http://ollama.ollama.svc.cluster.local:11434"
 # )
 # For local
+# client = AsyncClient(
+#     host="localhost"
+# )
+# For Compose
 client = AsyncClient(
-    host="localhost"
+    host="ollama"
 )
 
 

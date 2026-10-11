@@ -1,0 +1,79 @@
+services:
+  web:
+    build: ./my-app
+    ports:
+      - "5173:80"
+
+  python:
+    build: ./GCP
+    platform: linux/amd64
+    environment:
+      - DB_HOST=database
+      - REDIS_HOST=redis
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ollama
+      - redis
+      - database
+
+  database:
+    image: pgvector/pgvector:pg15
+    environment:
+      - POSTGRES_USER=manab
+      - POSTGRES_PASSWORD=strongpass
+      - POSTGRES_DB=mydb
+
+  ollama:
+    image: ollama/ollama
+    entrypoint: [ "/bin/sh", "-c" ]
+    depends_on:
+      - redis
+    command: >
+      "ollama serve & 
+       until ollama list >/dev/null 2>&1; do sleep 2; done;
+       ollama pull llama3.1 &&
+       ollama pull qwen3-embedding:0.6b;
+       wait"
+
+  redis:
+    image: redis:alpine
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoringlocal/config/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - python
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoringlocal/config/datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml
+      - ./monitoringlocal/Grafana Codes/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ./monitoringlocal/Grafana Codes/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoringlocal/Grafana Codes/alerting:/etc/grafana/provisioning/alerting
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+    depends_on:
+      - prometheus
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    privileged: true
+
+

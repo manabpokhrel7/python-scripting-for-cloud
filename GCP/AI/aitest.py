@@ -23,14 +23,15 @@ class AIRequest(BaseModel):
 
 
 # For localhost
-client = AsyncClient(host='localhost')
+# client = AsyncClient(host='localhost')
+# For Compose
+client = AsyncClient(host='ollama')
 
 
 @router.post("/response")
 async def response(payload: AIRequest, request: Request, db: AsyncSession = Depends(get_db)):
     try:
         previous_convo = r.get(request.session.get('sub'))
-        print(f"\n\nthis is the previous convo {previous_convo}")
         input_list = [{"role": "system",
                        "content": "You are an assistant for Manab's GCP cloud platform. Answer questions about the platform using the provided context. If the context doesn't contain the answer, say that you don't have enough information rather than inventing platform details."}]
         if previous_convo:
