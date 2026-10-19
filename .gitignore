@@ -33,4 +33,5 @@ TerraformCloudRun/variables.tfvars
 
 
 .env
+monitoringlocal/Loki/logs/wal/
 

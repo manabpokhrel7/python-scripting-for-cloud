@@ -44,7 +44,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoringlocal/config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoringlocal/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml
     depends_on:
       - python
 
@@ -53,10 +53,10 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./monitoringlocal/config/datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml
-      - ./monitoringlocal/Grafana Codes/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
-      - ./monitoringlocal/Grafana Codes/dashboards:/var/lib/grafana/dashboards:ro
-      - ./monitoringlocal/Grafana Codes/alerting:/etc/grafana/provisioning/alerting
+      - ./monitoringlocal/grafana/config/datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml
+      - ./monitoringlocal/grafana/dashboardconfig/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ./monitoringlocal/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoringlocal/grafana/alerting:/etc/grafana/provisioning/alerting
     environment:
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
     depends_on:
@@ -75,5 +75,35 @@ services:
     devices:
       - /dev/kmsg
     privileged: true
+
+
+  loki:
+    image: grafana/loki:3.7.8
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/config.yaml
+    volumes:
+      - ./monitoringlocal/Loki/config/loki-config.yaml:/etc/loki/config.yaml
+      - ./monitoringlocal/Loki/logs:/loki
+    healthcheck:
+      test: [ "CMD", "curl", "http://localhost:3100/ready" ]
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  grafanaalloy:
+    image: grafana/alloy:v1.20.1
+    volumes:
+      - ./monitoringlocal/grafanaalloy/config/config.alloy:/etc/alloy/config.alloy
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "12345:12345"
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+
+
 
 
